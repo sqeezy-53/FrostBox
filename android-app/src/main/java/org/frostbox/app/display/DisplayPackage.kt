@@ -8,7 +8,7 @@ import java.io.File
 import java.nio.file.Files
 import java.security.MessageDigest
 
-/** Optional runtime view. Hardlinks share immutable base files; overlay replacement uses rename.
+/** Optional runtime view. Verified private objects share guest PE/font data; overlay replacement uses rename.
  * Wine searches its own dll_dir before WINEDLLPATH, so an overlay env var alone is insufficient. */
 object DisplayPackage {
     private fun digest(bytes: ByteArray)=MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
@@ -30,7 +30,7 @@ object DisplayPackage {
             }
             check(names.containsAll(listOf("x86_64/lib/wine/x86_64-unix/win32u.so","x86_64/lib/wine/x86_64-unix/libfreetype.so","share/wine/fonts/tahoma.ttf","share/wine/fonts/marlett.ttf"))) { "Incomplete font overlay" }
             fun valid(): Boolean = File(root,"ready").isFile && expected.keys().asSequence().all { name ->
-                val file=File(root,name);ManagedFiles.noLink(file)
+                val file=File(root,name);org.frostbox.app.runtime.ImmutableRuntimeFiles.resolve(context.filesDir,file.toPath(),name)
                 file.isFile && file.length()<=16*1024*1024 && digest(file.readBytes())==expected.getString(name)
             }
             if(root.isDirectory && valid()) return@locked root
@@ -42,10 +42,10 @@ object DisplayPackage {
                 Files.walk(base.toPath()).use { paths -> paths.forEach { source ->
                     val rel=base.toPath().relativize(source)
                     if(rel.toString().isNotEmpty()) {
-                        check(!Files.isSymbolicLink(source)) { "Unexpected runtime link" }
+                        org.frostbox.app.runtime.ImmutableRuntimeFiles.resolve(context.filesDir,source,rel.toString())
                         val target=stage.toPath().resolve(rel).toFile()
                         if(Files.isDirectory(source)) check(target.isDirectory || target.mkdirs())
-                        else Files.copy(source,target.toPath())
+                        else org.frostbox.app.runtime.ImmutableRuntimeFiles.copy(context.filesDir,source,target.toPath(),rel.toString())
                     }
                 } }
                 var total=0

@@ -22,7 +22,11 @@ class RuntimeProbeService : Service() {
                 if (reply != null && job?.isActive != true) {
                     cancelled.set(false)
                     val parameters = Bundle(message.data)
-                    job = scope.launch { execute(mode, reply, parameters) }
+                    job = scope.launch {
+                        try { RuntimeStorageLease.acquire(this@RuntimeProbeService).use { execute(mode, reply, parameters) } }
+                        catch (e: CancellationException) { throw e }
+                        catch (e: Throwable) { runCatching { send(reply, JSONObject().put("error",e.toString()).toString(),true) } }
+                    }
                 } else if (reply != null) {
                     runCatching { send(reply, JSONObject().put("error", "Runtime test already active").toString(), true) }
                 }
@@ -34,6 +38,7 @@ class RuntimeProbeService : Service() {
                     cancelled.set(false)
                     job=scope.launch {
                         try {
+                            RuntimeStorageLease.acquire(this@RuntimeProbeService).use {
                             val directory=File(filesDir,"runtime-tests").apply { check(isDirectory || mkdirs()) }
                             prepareWine(directory)
                             val manager=AndroidWineManager(this@RuntimeProbeService,File(directory,"wine-userspace"),cancelled) {
@@ -42,6 +47,7 @@ class RuntimeProbeService : Service() {
                             val result=manager.execute(request)
                             android.util.Log.i("FrostBoxWine",result.toString())
                             send(reply,result.toString(),true)
+                            }
                         } catch(e: CancellationException) { throw e }
                         catch(e: Throwable) {
                             val result=JSONObject().put("error",e.toString()).put("runtimeUid",Process.myUid()).put("runtimePid",Process.myPid())

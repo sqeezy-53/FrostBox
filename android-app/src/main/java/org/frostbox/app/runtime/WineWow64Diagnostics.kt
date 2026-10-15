@@ -16,7 +16,7 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.ZipInputStream
 
-/** Built-in console QA only, private independent userspace and fresh prefix.
+/** Built-in QA only, private independent userspace and reusable fixture-owned prefix.
  * Never upgrades a user prefix or changes the qualified Wine archive. */
 internal object WineWow64Diagnostics {
     private fun sha(f: File)=f.inputStream().use {MessageDigest.getInstance("SHA-256").let {d->
@@ -34,18 +34,36 @@ internal object WineWow64Diagnostics {
         val parent=File(context.filesDir,"horizon-wow64")
         val root=WineWow64Package.prepare(context,source,cancelled,gpuProbe!=null)
         ManagedFiles.locked(listOf(parent)) {
-            val work=File(parent,"run-${UUID.randomUUID()}");check(work.mkdir())
-            val prefix=File(work,"prefix");check(prefix.mkdir())
+            RuntimeStorageLease.requireNoGuests()
+            val fixture=if(sleep)"sleep-x86.exe" else when(gpuProbe){"vulkan"->"vulkan-compute-x86.exe";"d3d9"->"d3d9-triangle-x86.exe";else->"console-x86.exe"}
+            val qaKey=MessageDigest.getInstance("SHA-256").digest((root.canonicalPath+fixture).toByteArray()).joinToString(""){"%02x".format(it)}
+            val work=File(parent,"qa-$qaKey");ManagedFiles.noLink(work)
+            val owner=File(work,"qa-owner.json")
+            if(!work.exists()) {
+                check(work.mkdir())
+                ManagedFiles.write(owner,JSONObject().put("schema",1).put("purpose","builtin-wow64-fixture").put("key",qaKey))
+            }
+            val ownership=ManagedFiles.read(owner) ?: error("Unowned QA directory retained; manual diagnosis required")
+            check(ownership.optString("purpose")=="builtin-wow64-fixture" && ownership.optString("key")==qaKey)
+            val prefix=File(work,"prefix");ManagedFiles.noLink(prefix)
+            val reused=File(prefix,"system.reg").isFile
+            check(prefix.isDirectory||prefix.mkdir())
             for((arch,system) in listOf("x86_64" to "system32","i386" to "syswow64")) {
-                val dest=File(prefix,"drive_c/windows/$system");check(dest.mkdirs())
+                val dest=ManagedFiles.resolve(prefix,"drive_c/windows/$system");check(dest.isDirectory||dest.mkdirs())
                 File(root,"x86_64/lib/wine/$arch-windows").listFiles()!!.filter{it.isFile}.forEach {f->
-                    coroutine.ensureActive();check(!cancelled.get());f.copyTo(File(dest,f.name))
+                    coroutine.ensureActive();check(!cancelled.get())
+                    val target=File(dest,f.name);ManagedFiles.noLink(target)
+                    if(!target.exists())f.copyTo(target)
+                    else if(f.name in listOf("ntdll.dll","kernel32.dll","kernelbase.dll"))check(sha(target)==sha(f)){"QA prefix system file changed"}
                 }
             }
-            val drives=File(prefix,"dosdevices");check(drives.mkdir())
-            android.system.Os.symlink("../drive_c",File(drives,"c:").path);android.system.Os.symlink("/",File(drives,"z:").path)
-            val fixture=if(sleep)"sleep-x86.exe" else when(gpuProbe){"vulkan"->"vulkan-compute-x86.exe";"d3d9"->"d3d9-triangle-x86.exe";else->"console-x86.exe"}
-            val exe=File(work,fixture);context.assets.open("wine-wow64/$fixture").use {input->exe.outputStream().use {input.copyTo(it)}}
+            val drives=File(prefix,"dosdevices");ManagedFiles.noLink(drives);check(drives.isDirectory||drives.mkdir())
+            for((name,destination) in listOf("c:" to "../drive_c","z:" to "/")) {
+                val link=File(drives,name)
+                if(Files.exists(link.toPath(),java.nio.file.LinkOption.NOFOLLOW_LINKS))check(Files.isSymbolicLink(link.toPath()) && android.system.Os.readlink(link.path)==destination)
+                else android.system.Os.symlink(destination,link.path)
+            }
+            val exe=File(work,fixture);ManagedFiles.noLink(exe);context.assets.open("wine-wow64/$fixture").use {input->exe.outputStream().use {input.copyTo(it)}}
             val expected=if(gpuProbe==null && !sleep)m.getString("fixtureSha256") else JSONObject(context.assets.open("wine-wow64/$fixture.json").bufferedReader().use{it.readText()}).getString("sha256")
             check(sha(exe)==expected && PeInspector.inspect(exe)=="x86")
                         if(gpuProbe=="d3d9") {
@@ -70,7 +88,7 @@ internal object WineWow64Diagnostics {
                     update(r,false);delay(100)
                 }} finally {bridge.releaseDiagnostic(handle);handle=0L}
             }
-            val report=JSONObject().put("runtimeUid",Process.myUid()).put("runtimePid",Process.myPid()).put("root",root.path).put("prefix",prefix.path).put("basePreserved",true)
+            val report=JSONObject().put("runtimeUid",Process.myUid()).put("runtimePid",Process.myPid()).put("root",root.path).put("prefix",prefix.path).put("basePreserved",true).put("prefixReused",reused).put("retention","one-owned-prefix-per-fixture-runtime")
             try {
                 val init=run("initialize");report.put("wineboot",init)
                 if(init.optInt("exitCode",-1)==0 && !init.optBoolean("cancelled")) {

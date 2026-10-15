@@ -43,20 +43,22 @@ internal object WineWow64Package {
                 check(StatFs(parent.path).availableBytes>total+2L*1024*1024*1024){"Insufficient space for isolated WoW64 runtime"}
                 Files.walk(source.toPath()).use {entries->entries.forEach {entry->
                     coroutine.ensureActive();check(!cancelled.get()){"WoW64 preparation cancelled"}
-                    check(!Files.isSymbolicLink(entry));val target=stage.toPath().resolve(source.toPath().relativize(entry))
+                    ImmutableRuntimeFiles.resolve(context.filesDir,entry,source.toPath().relativize(entry).toString());val target=stage.toPath().resolve(source.toPath().relativize(entry))
                     if(Files.isDirectory(entry))Files.createDirectories(target)
-                    else if(!Files.exists(target))Files.copy(entry,target)
+                    else if(!Files.exists(target))ImmutableRuntimeFiles.copy(context.filesDir,entry,target,source.toPath().relativize(entry).toString())
                 }}
                 val digest=MessageDigest.getInstance("SHA-256");var bytes=0L;val seen=mutableSetOf<String>()
                 java.security.DigestInputStream(context.assets.open("wine-wow64/overlay.zip"),digest).use {input->
                     ZipInputStream(input).use {zip->
                         while(true){val e=zip.nextEntry?:break;require(!e.isDirectory && e.name in names && seen.add(e.name))
                             val f=ManagedFiles.resolve(stage,e.name);check(f.parentFile!!.isDirectory||f.parentFile!!.mkdirs())
-                            f.outputStream().use {output->val b=ByteArray(65536);while(true){
+                            val part=File(stage,"wow64-extract.partial");ManagedFiles.noLink(part)
+                            part.outputStream().use {output->val b=ByteArray(65536);while(true){
                                 coroutine.ensureActive();check(!cancelled.get()){"WoW64 extraction cancelled"}
                                 val n=zip.read(b);if(n<0)break;bytes+=n;check(bytes<=total);output.write(b,0,n)
                             }}
-                            check(f.length()==files.getJSONObject(e.name).getLong("size") && sha(f)==files.getJSONObject(e.name).getString("sha256"))
+                            check(part.length()==files.getJSONObject(e.name).getLong("size") && sha(part)==files.getJSONObject(e.name).getString("sha256"))
+                            check(part.renameTo(f))
                         }
                         while(input.read()!=-1){}
                     }
@@ -64,11 +66,13 @@ internal object WineWow64Package {
                 check(bytes==total && seen.size==names.size && digest.digest().joinToString(""){"%02x".format(it)}==archive)
                 if(patch!=null) {
                     val unix=File(stage,"x86_64/lib/wine/x86_64-unix")
-                    val module=File(unix,"win32u.so");context.assets.open("wine-wow64/win32u.so").use{input->module.outputStream().use {input.copyTo(it)}}
-                    check(sha(module)==patch.getString("win32uSha256"))
+                    val module=File(unix,"win32u.so");val modulePart=File(stage,"wow64-module.partial");ManagedFiles.noLink(modulePart)
+                    context.assets.open("wine-wow64/win32u.so").use{input->modulePart.outputStream().use {input.copyTo(it)}}
+                    check(sha(modulePart)==patch.getString("win32uSha256"));check(modulePart.setExecutable(true,true));check(modulePart.renameTo(module))
                     val wsi=JSONObject(context.assets.open("wine-wsi/manifest.json").bufferedReader().use{it.readText()})
-                    val loader=File(unix,"libfrostvk.so");context.assets.open("wine-wsi/libfrostvk.so").use{input->loader.outputStream().use{input.copyTo(it)}}
-                    check(sha(loader)==wsi.getJSONObject("files").getString("libfrostvk.so"))
+                    val loader=File(unix,"libfrostvk.so");val loaderPart=File(stage,"wow64-loader.partial");ManagedFiles.noLink(loaderPart)
+                    context.assets.open("wine-wsi/libfrostvk.so").use{input->loaderPart.outputStream().use{input.copyTo(it)}}
+                    check(sha(loaderPart)==wsi.getJSONObject("files").getString("libfrostvk.so"));check(loaderPart.setExecutable(true,true));check(loaderPart.renameTo(loader))
                     ManagedFiles.write(File(stage,"wow64-vulkan-overlay.json"),patch)
                 }
                 ManagedFiles.write(File(stage,"wow64-ready.json"),m)
