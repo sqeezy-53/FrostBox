@@ -69,6 +69,21 @@ class LibraryRecordsTest {
         try {repo.importCover(p.id,bad);fail("Invalid image accepted")}catch(_: IllegalArgumentException){}
         assertEquals(saved,repo.profiles.first().single())
     }
+    @Test fun gameSettingsPersistAtomicallyWithoutGameFileChanges()=runBlocking {
+        val a=record();val b=record();val before=files()
+        coroutineScope {
+            launch {repo.updateGameSettings(a.id){it.copy(experience=it.experience.copy(scaling=org.frostbox.core.ScalingMode.FILL))}}
+            launch {repo.updateGameSettings(a.id){it.copy(experience=it.experience.copy(muted=true))}}
+            launch {repo.markStarted(a.id,12345)}
+        }
+        val result=repo.profiles.first().single {it.id==a.id}
+        assertTrue(result.experience.muted);assertEquals(org.frostbox.core.ScalingMode.FILL,result.experience.scaling)
+        assertEquals(12345L,result.lastLaunch);assertEquals(b,repo.profiles.first().single {it.id==b.id});assertEquals(before,files())
+        repo.updateGameSettings(a.id){it.copy(width=800,height=600)}
+        assertEquals(800,repo.profiles.first().single {it.id==a.id}.width)
+        assertThrows(IllegalStateException::class.java){runBlocking {repo.updateGameSettings(a.id){it.copy(executable="content/other.exe")}}}
+        Unit
+    }
     @Test fun emptyAndRepeatedOperationsRemainEmpty()=runBlocking {
         repo.clearEntries();repo.removeEntry(UUID.randomUUID().toString());repo.clearEntries()
         assertTrue(repo.profiles.first().isEmpty())

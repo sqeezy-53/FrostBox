@@ -81,6 +81,18 @@ class ProfileRepository(private val context: Context, private val profileDataSto
             } finally {bitmap.recycle()}
         } finally {temp.delete()} // Only the newly created cache temporary, never SAF/game/prefix data.
     }
+    /** Atomic record-only update during a running game. Never touches its locked content/prefix.
+     * The allowlist prevents accidental replacement of executable/runtime identity. */
+    suspend fun updateGameSettings(id: String, change: (GameProfile)->GameProfile) = withContext(Dispatchers.IO) {
+        profileDataStore.edit { prefs ->
+            val archive=decode(prefs[key]);val old=archive.profiles.single {it.id==id}
+            val updated=change(old).also {it.validate()}
+            check(updated.copy(experience=old.experience,controllerMapping=old.controllerMapping,
+                keyboardController=old.keyboardController,touchProfile=old.touchProfile,
+                width=old.width,height=old.height)==old) { "Only in-game settings may change during a session" }
+            prefs[key]=json.encodeToString(archive.copy(profiles=archive.profiles.map {if(it.id==id)updated else it}))
+        }
+    }
     suspend fun markStarted(id: String,time: Long) { profileDataStore.edit { prefs ->
         val a=decode(prefs[key]);prefs[key]=json.encodeToString(a.copy(profiles=a.profiles.map { if(it.id==id) it.copy(lastLaunch=time) else it }))
     } }
