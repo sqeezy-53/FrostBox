@@ -1,7 +1,8 @@
 # Known issues
 
-- Runtime storage: full overlay copies plus retained diagnostic environments caused
-  74.61GiB of app data. Safe sharing/lifecycle work must not delete games or prefixes.
+- Runtime storage: initial full copies/retained diagnostics caused 74.61GiB.
+  Verified data sharing recovered20.11GiB; old diagnostic prefixes, obsolete-version
+  retention and general GC remain pending. No game/prefix deletion.
 - Mafia II: one physical menu/controller/music success; repeated intro startup not
   reliable. No five-run qualification, level, character control or gameplay FPS.
 - KARLSON: Tutorial works on the tested device; Sandbox/scene transitions can fail
@@ -14,3 +15,5 @@
 - Other devices, drivers, many Vulkan extensions and Windows applications are untested.
 
 Use real Issues for acceptance criteria. Do not infer gameplay from fixture success.
+
+- Binary release privacy: 1,420 nested runtime entries contain local build paths; separate sanitized packaging and source correspondence are required.

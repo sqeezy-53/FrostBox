@@ -18,3 +18,14 @@ can be published before this binary audit is complete.
 Debug artifacts are not stable releases. Existing local APKs/source/evidence are
 preserved; no historical tag is invented for them. CI artifacts are source-only
 shell builds and must be labelled as such.
+
+## Foundation binary privacy blocker
+
+The APK text/manifest audit detected no credentials or personal paths in the
+reviewed small metadata files. A deeper scan of nested runtime binaries found
+local compiler/build paths in **1,420 entries**, mainly Wine PE assets. Therefore
+the current full APK is a local validation checkpoint, not a GitHub release asset.
+Create a separate privacy-safe distribution package and audit exact corresponding
+sources before upload. Preserve the qualified Wine ZIP byte-for-byte and do not
+change existing prefix identities silently. This block does not affect source
+repository publication.

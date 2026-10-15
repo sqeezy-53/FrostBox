@@ -1,0 +1,8 @@
+<resources>
+    <string name="storage_allocated_total">Занято на диске: %1$s</string>
+    <string name="storage_temporary">Временные файлы</string>
+    <string name="storage_analyze_sharing">Найти одинаковые runtime-файлы</string>
+    <string name="storage_sharing_estimate">Возможно освободить: %1$s; одинаковых путей: %2$d</string>
+    <string name="storage_share_files">Объединить одинаковые runtime-файлы</string>
+    <string name="storage_sharing_policy">Одинаковые неизменяемые файлы будут использовать общие данные на диске. Все пути сохранятся. Игры, Wine prefixes и сохранения исключены. Игра должна быть остановлена; изменившийся план будет отклонён.</string>
+</resources>
