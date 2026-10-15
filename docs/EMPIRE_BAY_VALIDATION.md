@@ -1,3 +1,5 @@
+> Physical follow-up: the user also confirmed audible Mafia II music in the successful menu session. Repeated startup and level gameplay remain unqualified.
+
 # OPERATION EMPIRE BAY — Mafia II menu milestone (2026-10-14)
 
 **Physical user confirmed the original Mafia II (2010) main menu and physical

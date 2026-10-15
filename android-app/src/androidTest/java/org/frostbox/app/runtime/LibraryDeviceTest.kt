@@ -89,6 +89,18 @@ class LibraryDeviceTest {
         Assert.assertEquals(Process.myUid(),r.getInt("runtimeUid"));Assert.assertNotEquals(Process.myPid(),r.getInt("runtimePid"))
         Assert.assertTrue(r.getJSONObject("prefixValidation").getBoolean("valid"));Assert.assertFalse(r.getBoolean("bootstrap"))
     }
+    // Opt-in maintenance regression reuses only a recorded original fixture, never a game EXE.
+    private fun retainedFixture(marker: String,asset: String): GameProfile? {
+        if(InstrumentationRegistry.getArguments().getString("reuseQaFixtures")!="true")return null
+        val id=File(context.filesDir,marker).readText().trim()
+        val p=runBlocking { repository.profiles.first().single {it.id==id} }
+        val expected=context.assets.open(asset).use { input ->
+            java.security.MessageDigest.getInstance("SHA-256").digest(input.readBytes()).joinToString(""){"%02x".format(it)}
+        }
+        check(p.sha256==expected) {"Retained record is not the expected built-in fixture"}
+        ui.onNodeWithTag("nav-Library").performClick()
+        return p
+    }
     private fun folder(p: GameProfile,path: String) {
         Intents.init()
         try {
@@ -119,7 +131,7 @@ class LibraryDeviceTest {
     @Test fun wow64LibraryConsoleStopRecovery() {
         val root=File(context.cacheDir,"launcher-qa")
         for(name in listOf("console-x86.exe","sleep-x86.exe"))context.assets.open("wine-wow64/$name").use {input->File(root,name).outputStream().use{input.copyTo(it)}}
-        val p=add("console-x86.exe")
+        val p=retainedFixture("library-wow64-console-id.txt","wine-wow64/console-x86.exe") ?: add("console-x86.exe")
         Assert.assertEquals("x86",p.architecture);Assert.assertNull(p.winePrefixId)
         success(p);val marker=File(context.filesDir,"games/${p.id}/prefix/.frostbox-prefix.json").readText()
         success(p);Assert.assertEquals(marker,File(context.filesDir,"games/${p.id}/prefix/.frostbox-prefix.json").readText())
@@ -140,7 +152,7 @@ class LibraryDeviceTest {
     @Test fun wow64D3d9LibraryPlayRepeatAndStop() {
         val root=File(context.cacheDir,"launcher-qa")
         context.assets.open("wine-wow64/d3d9-triangle-x86.exe").use {input->File(root,"triangle-x86.exe").outputStream().use{input.copyTo(it)}}
-        val original=add("triangle-x86.exe")
+        val original=retainedFixture("library-wow64-d3d9-id.txt","wine-wow64/d3d9-triangle-x86.exe") ?: add("triangle-x86.exe")
         click("details-${original.id}");click("settings-${original.id}");click("graphics-backend")
         ui.onNodeWithText("DXVK 2.7.1 · experimental D3D9").performClick();click("save-profile");click("details-back")
         ui.waitUntil(10000){runBlocking{repository.profiles.first().single{it.id==original.id}.graphics==org.frostbox.core.GraphicsBackend.DXVK}}

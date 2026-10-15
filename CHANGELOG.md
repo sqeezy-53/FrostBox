@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0-alpha.foundation.1 — 2026-10-15
+
+- Real PRIVATE GitHub source baseline, main/develop, pinned Actions, scoped CI and issue/PR templates. SDK setup failure fixed and real remote CI passed.
+- Verified private object sharing for immutable Wine PE/font payloads; Android hardlinks rejected and not used. Unix ELF, games and mutable prefixes remain separate.
+- Idle runtime/storage lease, owned-process checks, hash/metadata preflight, atomic references, stale-plan/symlink rejection and allocated-block accounting.
+- Device reconciliation: 32,591 paths, 20.11GiB reclaimed; protected game/prefix/profile tree unchanged.
+- Built-in WoW64 QA prefix reuse; no directory growth after warmup. Actual fixture regressions pass; game stability unchanged.
+- Full binary GitHub release blocked by embedded local build paths in qualified Wine PE files; local APK preserved.
+
+
 ## Foundation source baseline — 2026-10-15
 
 Source history begins with the real current snapshot; prior headings below are

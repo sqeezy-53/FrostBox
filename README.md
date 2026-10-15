@@ -42,9 +42,11 @@ recoverable sessions and honest compatibility evidence.
 
 ## Screenshots
 
-A privacy-reviewed screenshot gallery is pending. The banner above is original
-vector branding based on the real Android app icon; it is not a gameplay capture.
-Private game screens, raw logs and personal Library data are not published here.
+<p align="center"><img src="docs/assets/storage-device.png" alt="Real FrostBox Storage screen on POCO after runtime sharing" width="320" /></p>
+
+Real Android UI captured on the validation device; only aggregate storage counts
+are shown. The banner uses original vector app branding. Game scenes, private
+Library entries and raw device logs are excluded.
 
 ## Architecture & how it works
 
@@ -111,7 +113,8 @@ stereo 48 kHz PCM output; recording and arbitrary formats are not promised.
 
 There is no approved GitHub binary release yet. Existing qualified APK checkpoints
 remain local until source correspondence and all distribution obligations are
-checked. GitHub Actions produces a **shell-only debug APK**, not the full gaming
+checked. The current qualified Wine PE assets embed local build paths and are
+not approved for GitHub binary upload. GitHub Actions produces a **shell-only debug APK**, not the full gaming
 runtime. Do not install it over a full device build expecting Wine to remain bundled.
 [Installation and safe upgrades](docs/INSTALLATION.md).
 
@@ -142,15 +145,17 @@ backup before testing experimental profiles. [Configuration](docs/CONFIGURATION.
 
 ## Known limitations
 
-Runtime overlays and retained diagnostic prefixes currently consume excessive
-storage (74.61 GiB observed on the development device). Safe sharing/reclamation
-is active work; there is no blanket cleanup command. Mafia II startup and KARLSON
+Foundation recovered **20.11 GiB** by sharing verified immutable PE/font data:
+74.62 → 54.51 GiB immediately after reconciliation. After creating one retained
+QA prefix and running regressions: 55.70 GiB. Games/prefixes were preserved.
+Legacy diagnostic prefixes and old package versions remain protected; general
+cache garbage collection is still pending. Mafia II startup and KARLSON
 scene transitions remain unresolved. No sustained gaming FPS/frametime results
 are claimed. [Known issues](docs/KNOWN_ISSUES.md) · [Storage](docs/STORAGE.md).
 
 ## Roadmap
 
-1. Shared immutable runtimes and safe, measurable storage lifecycle.
+1. Finish safe cache lifecycle/GC on top of verified immutable runtime sharing.
 2. In-game panel and persistent display scaling with stable Surface lifecycle.
 3. Repeatable Mafia II startup and KARLSON scene-transition diagnosis.
 4. Wider physical-device qualification and audited binary prereleases.

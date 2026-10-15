@@ -1,3 +1,7 @@
+# Foundation source/storage update — 2026-10-15
+
+Current scoped results: [FOUNDATION_VALIDATION](FOUNDATION_VALIDATION.md). Historical reports below retain their original checkpoint scope.
+
 # Latest: EMPIRE BAY menu milestone — 2026-10-14
 
 Actual POCO: ordinary Library x86 D3D9 Play/Stop/repeat120 frames/42, x86 console

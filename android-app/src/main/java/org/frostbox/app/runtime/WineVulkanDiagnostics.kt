@@ -40,14 +40,11 @@ internal object WineVulkanDiagnostics {
             Files.walk(base.toPath()).use { entries -> entries.forEach { source ->
                 val relative=base.toPath().relativize(source)
                 if(relative.toString().isNotEmpty()) {
-                    check(!Files.isSymbolicLink(source));val target=stage.toPath().resolve(relative)
+                    ImmutableRuntimeFiles.resolve(context.filesDir,source,relative.toString());val target=stage.toPath().resolve(relative)
                     if(Files.isDirectory(source))Files.createDirectories(target)
                     else if(relative.toString()!="ready" && !Files.exists(target)) {
                         check(StatFs(parent.path).availableBytes>Files.size(source)+32L*1024*1024)
-                        val part=target.resolveSibling(target.fileName.toString()+".partial");ManagedFiles.noLink(part.toFile())
-                        Files.newInputStream(source).use { input -> Files.newOutputStream(part).use { input.copyTo(it) } }
-                        if(Files.isExecutable(source))check(part.toFile().setExecutable(true,true))
-                        check(part.toFile().renameTo(target.toFile()));check(target.toFile().setLastModified(Files.getLastModifiedTime(source).toMillis()))
+                        ImmutableRuntimeFiles.copy(context.filesDir,source,target,relative.toString())
                     }
                 }
             } }
