@@ -6,8 +6,10 @@ import org.frostbox.core.AudioWire
 
 interface PcmOutput: AutoCloseable {
  val kind: String get()="test-output"
+ val appliedGain: Float? get()=null
  val capacity: Int
  val played: Long
+ fun gain(value: Float) {}
  fun start()
  fun pause()
  fun reset()
@@ -23,6 +25,8 @@ class AndroidPcmOutput(context: Context): PcmOutput {
  private var track: AudioTrack?=null
  private var previous=0L;private var wraps=0L
  private val bytes: Int
+ @Volatile override var appliedGain: Float=1f
+  private set
  override val kind="android-audiotrack"
  override val capacity: Int
  init {
@@ -37,9 +41,10 @@ class AndroidPcmOutput(context: Context): PcmOutput {
   .setBufferSizeInBytes(bytes).setTransferMode(AudioTrack.MODE_STREAM).build().also {if(it.state!=AudioTrack.STATE_INITIALIZED){it.release();error("Android output did not initialize")}}
  private fun active(): AudioTrack {check(!focusLost){"Android audio focus lost"};return checkNotNull(track){"Output released"}}
  override val played: Long get(){val raw=active().playbackHeadPosition.toLong() and 0xffffffffL;if(raw<previous)wraps+=1L shl 32;previous=raw;return wraps+raw}
+ override fun gain(value: Float){require(value.isFinite() && value in 0f..1f);check(active().setVolume(value)==AudioTrack.SUCCESS);appliedGain=value}
  override fun start(){active().play()}
  override fun pause(){active().pause()}
- override fun reset(){active().stop();track?.release();track=create();previous=0;wraps=0}
+ override fun reset(){active().stop();track?.release();track=create();appliedGain=1f;previous=0;wraps=0}
  override fun write(bytes: ByteArray){
   var offset=0;val deadline=SystemClock.elapsedRealtime()+1500
   while(offset<bytes.size){val n=active().write(bytes,offset,bytes.size-offset,AudioTrack.WRITE_NON_BLOCKING);check(n>=0){"AudioTrack write error $n"};offset+=n

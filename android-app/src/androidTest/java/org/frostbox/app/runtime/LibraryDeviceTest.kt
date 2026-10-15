@@ -54,7 +54,30 @@ class LibraryDeviceTest {
         File(root,"truncated").mkdirs();File(root,"truncated/short.dat").writeText("x")
         java.io.RandomAccessFile(File(root,"slow/large.dat"),"rw").use { it.setLength(8L*1024*1024) }
     }
-    private fun click(tag: String) { if(ui.onAllNodesWithTag("catalog-scroll").fetchSemanticsNodes().isNotEmpty() && ui.onAllNodesWithTag(tag).fetchSemanticsNodes().isEmpty())ui.onNodeWithTag("catalog-scroll").performScrollToNode(hasTestTag(tag));ui.waitUntil(20000) { ui.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty() };ui.onNodeWithTag(tag).performScrollTo().performClick() }
+    private fun click(tag: String) {
+        if((tag.startsWith("play-") || tag.startsWith("details-")) && ui.onAllNodesWithTag("catalog-scroll").fetchSemanticsNodes().isNotEmpty()) {
+            val id=tag.substringAfter('-')
+            val profiles=runBlocking {repository.profiles.first()};val target=profiles.single {it.id==id}
+            ui.onNodeWithTag("library-search").performTextReplacement(target.name)
+            ui.onNodeWithTag("filter-Все").performClick()
+            val recent=ui.onNodeWithTag("library-sort").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Selected]
+            val matching=profiles.filter {it.name.contains(target.name,true)}
+            val ordered=if(recent)matching.sortedByDescending {it.lastLaunch ?: 0} else matching.sortedBy {it.name.lowercase()}
+            // Address the LazyGrid item, then scroll its child button. Scanning for a deep
+            // descendant can skip an oversized card in the large retained QA catalog.
+            ui.onNodeWithTag("catalog-scroll").performScrollToIndex(ordered.indexOfFirst {it.id==id})
+        }
+        ui.waitUntil(20000){ui.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()}
+        val node=ui.onNodeWithTag(tag)
+        if(ui.onAllNodes(hasTestTag(tag) and hasAnyAncestor(hasScrollAction())).fetchSemanticsNodes().isNotEmpty())node.performScrollTo()
+        node.performClick()
+    }
+    private fun stopDisplay() {
+        if(ui.onAllNodesWithTag("game-screen").fetchSemanticsNodes().isEmpty())return
+        if(ui.onAllNodesWithTag("game-panel").fetchSemanticsNodes().isEmpty())ui.onNodeWithTag("game-panel-open").performClick()
+        ui.onNodeWithTag("panel-home").performClick();ui.onNodeWithTag("display-stop").performScrollTo().performClick()
+        ui.onNodeWithTag("panel-confirm-stop").performClick()
+    }
     private fun waitProfile(before: Set<String>): GameProfile {
         var found: GameProfile?=null
         ui.waitUntil(20000) { found=runBlocking { repository.profiles.first().firstOrNull { it.id !in before } };found!=null }
@@ -176,11 +199,166 @@ class LibraryDeviceTest {
             if(run==0)prefix=r.getJSONObject("prefixValidation").getString("prefix") else Assert.assertEquals(prefix,r.getJSONObject("prefixValidation").getString("prefix"))
         }
         val previous=repository.readRun(original.id)?.optString("runId");click("play-${original.id}")
-        ui.waitUntil(30000){ui.onAllNodesWithTag("display-stop").fetchSemanticsNodes().isNotEmpty()}
-        ui.onNodeWithTag("display-stop").performClick()
+        ui.waitUntil(30000){ui.onAllNodesWithTag("game-panel-open").fetchSemanticsNodes().isNotEmpty()}
+        stopDisplay()
         val stopped=result(original.id,previous=previous)
         Assert.assertTrue(stopped.toString(),stopped.optBoolean("cancelled") || stopped.optBoolean("notStarted"))
         File(context.filesDir,"library-wow64-d3d9-id.txt").writeText(original.id)
+    }
+    @Test fun gamePanelKarlsonPhysicalSession() = physicalPanelSession(false)
+    @Test fun gamePanelControllerPhysicalFixture() = physicalPanelSession(true)
+    private fun physicalPanelSession(fixture: Boolean) {
+        requireGameQa()
+        val profile=if(fixture) {
+            context.assets.open("launcher/game-panel-input-x64.exe").use {input->File(context.cacheDir,"launcher-qa/panel-input.exe").outputStream().use {input.copyTo(it)}}
+            val previous=File(context.filesDir,"game-experience-controller/result.json").takeIf {it.isFile}?.let {JSONObject(it.readText()).optString("profileId")}
+            val expected=context.assets.open("launcher/game-panel-input-x64.exe").use {java.security.MessageDigest.getInstance("SHA-256").digest(it.readBytes()).joinToString(""){b->"%02x".format(b)}}
+            val retained=if(InstrumentationRegistry.getArguments().getString("reuseQaFixtures")=="true")runBlocking {repository.profiles.first().firstOrNull {it.id==previous && it.name=="Controller Panel QA" && it.sha256==expected && it.controllerMode=="xinput"}}else null
+            if(retained!=null)retained else {
+                val imported=add("panel-input.exe")
+                val prefix=File(context.filesDir,"wine-vulkan-profile-id.txt").readText().trim()
+                imported.copy(name="Controller Panel QA",winePrefixId=prefix,graphics=org.frostbox.core.GraphicsBackend.DXVK,
+                    controllerMode="xinput",width=800,height=600,keyboardController=org.frostbox.core.KeyboardControllerProfile(mouseSpeed=1800f)).also {runBlocking {repository.save(it)}}
+            }
+        } else {
+            val id=File(context.filesDir,"library-karlson-profile-id.txt").readText().trim()
+            runBlocking {repository.profiles.first().single {it.id==id}}.also {check(it.name.contains("KARLSON") && it.graphics==org.frostbox.core.GraphicsBackend.DXVK)}
+        }
+        val id=profile.id
+        lateinit var model: org.frostbox.app.FrostModel
+        ui.activityRule.scenario.onActivity {model=androidx.lifecycle.ViewModelProvider(it)[org.frostbox.app.FrostModel::class.java]}
+        val previousRun=repository.readRun(id)?.optString("runId")
+        if(ui.onAllNodesWithTag("nav-Library").fetchSemanticsNodes().isNotEmpty())ui.onNodeWithTag("nav-Library").performClick()
+        click("play-$id")
+        val dir=File(context.filesDir,if(fixture)"game-experience-controller" else "game-experience-physical").apply{mkdirs()}
+        File(dir,"ready.json").writeText(JSONObject().put("running",false).put("phase","starting").toString())
+        val rows=org.json.JSONArray();val start=android.os.SystemClock.elapsedRealtime()
+        var launched=false
+        try {
+            // A restored profile already has a terminal report. Do not interpret the
+            // pre-dispatch idle state or that old report as this Play's completion.
+            ui.waitUntil(20000){
+                val current=repository.readRun(id)
+                launched=model.launcher.activeId.value==id || (current?.optString("runId")!=previousRun && current?.has("runId")==true)
+                launched
+            }
+            ui.waitUntil(120000){(model.launcher.guestWsi.value?.frames?.value ?: 0)>5 || model.launcher.activeId.value==null}
+            check(model.launcher.activeId.value==id){"Game failed before physical test: ${model.launcher.sessions.value[id]}"}
+            File(dir,"ready.json").writeText(JSONObject().put("running",true).put("profileId",id).put("controllerMode",profile.controllerMode).toString())
+            val seconds=(InstrumentationRegistry.getArguments().getString("frostbox.gameSeconds")?.toIntOrNull() ?: 180).coerceIn(30,300)
+            var lastPanel=false;var count=0
+            while(model.launcher.activeId.value==id && android.os.SystemClock.elapsedRealtime()-start<seconds*1000L) {
+                val blocked=model.controllers.gameInputBlocked
+                rows.put(JSONObject().put("elapsedMs",android.os.SystemClock.elapsedRealtime()-start).put("panelOpen",blocked)
+                    .put("physicalEvents",model.controllers.state.value.events).put("devices",model.controllers.state.value.devices.joinToString {it.name})
+                    .put("gpuFrames",model.launcher.guestWsi.value?.frames?.value ?: 0))
+                if(lastPanel!=blocked || count==0){UiDevice.getInstance(inst).takeScreenshot(File(dir,"transition-${count++}.png"));lastPanel=blocked}
+                // Physical interaction must not leave Compose's test frame clock frozen.
+                repeat(10){ui.mainClock.advanceTimeBy(100);ui.waitForIdle();Thread.sleep(100)}
+            }
+        } finally {
+            if(model.launcher.activeId.value==id)ui.runOnIdle {model.launcher.stop()}
+            ui.waitUntil(45000){model.launcher.activeId.value==null}
+            val r=repository.readRun(id) ?: JSONObject()
+            r.put("panelAndInputTimeline",rows).put("physicalGameplayNeedsHumanConfirmation",true)
+            if(launched)File(dir,"result.json").writeText(r.toString(2))
+            else File(dir,"start-failure.json").writeText(JSONObject().put("profileId",id).put("message",model.message.value).put("session",model.launcher.sessions.value[id].toString()).toString(2))
+            File(dir,"ready.json").writeText(JSONObject().put("running",false).put("phase","finished").toString())
+        }
+        Assert.assertTrue(model.launcher.sessions.value[id].toString(),rows.length()>0)
+    }
+    @Test fun gamePanelPreservesGpuSessionAndLiveSettings() {
+        Assume.assumeTrue("Build the debug game-panel fixture first",runCatching{context.assets.open("launcher/game-panel-x64.exe").close()}.isSuccess)
+        val root=File(context.cacheDir,"launcher-qa")
+        context.assets.open("launcher/game-panel-x64.exe").use {input->File(root,"panel.exe").outputStream().use {input.copyTo(it)}}
+        val original=add("panel.exe")
+        val prefix=File(context.filesDir,"wine-vulkan-profile-id.txt").readText().trim()
+        val p=original.copy(name="Panel QA ${original.id.take(8)}",winePrefixId=prefix,graphics=org.frostbox.core.GraphicsBackend.DXVK,width=800,height=600)
+        runBlocking {repository.save(p)}
+        lateinit var model: org.frostbox.app.FrostModel
+        ui.activityRule.scenario.onActivity {model=androidx.lifecycle.ViewModelProvider(it)[org.frostbox.app.FrostModel::class.java]}
+        ui.waitUntil(10000){model.profiles.value.any {it.id==p.id && it.name==p.name}}
+        ui.waitUntil(10000){ui.onAllNodesWithTag("catalog-scroll").fetchSemanticsNodes().isNotEmpty()}
+        click("play-${p.id}")
+        ui.waitUntil(90000){(model.launcher.guestWsi.value?.frames?.value ?: 0)>=10}
+        val gpu=model.launcher.guestWsi.value!!
+        lateinit var surface: org.frostbox.app.display.WindowsSurface
+        lateinit var viewport: org.frostbox.app.display.WindowsViewport
+        ui.activityRule.scenario.onActivity {a->surface=a.findViewById<android.view.ViewGroup>(android.R.id.content).findViewWithTag("windows-surface");viewport=surface.parent as org.frostbox.app.display.WindowsViewport}
+        val creates=surface.surfaceCreates
+        val run=model.launcher.sessions.value[p.id]!!.result.let {JSONObject(it).optString("runId")}
+        val evidence=File(context.filesDir,"game-experience-qa").apply{mkdirs()}
+        fun shot(name: String){UiDevice.getInstance(inst).takeScreenshot(File(evidence,"$name.png"))}
+        val samples=org.json.JSONArray()
+        fun sample(label: String) {
+            val frames=gpu.frames.value;val start=android.os.SystemClock.elapsedRealtime()
+            Thread.sleep(2000)
+            val elapsed=android.os.SystemClock.elapsedRealtime()-start
+            val delta=gpu.frames.value-frames
+            samples.put(JSONObject().put("stage",label).put("elapsedMs",elapsed).put("completedPresents",delta)
+                .put("hostCompletedPresentRate",delta*1000.0/elapsed).put("mainPssKiB",android.os.Debug.getPss())
+                .put("mainFdCount",File("/proc/self/fd").list()?.size).put("surfaceCreates",surface.surfaceCreates).put("surfaceDestroys",surface.surfaceDestroys))
+        }
+        fun preserves(){ui.runOnIdle {Assert.assertSame(gpu,model.launcher.guestWsi.value);Assert.assertEquals(creates,surface.surfaceCreates);Assert.assertEquals(0,surface.surfaceDestroys);Assert.assertEquals(p.id,model.launcher.activeId.value)}}
+        fun resume(){click("panel-resume");ui.waitUntil(5000){!model.controllers.gameInputBlocked};preserves()}
+        try {
+            sample("A-game-without-panel");shot("game-running")
+            val before=gpu.frames.value
+            click("game-panel-open");ui.onNodeWithTag("game-panel").assertExists();shot("game-panel")
+            Assert.assertTrue(model.controllers.gameInputBlocked)
+            sample("B-panel-open")
+            ui.waitUntil(10000){gpu.frames.value>=before+10};preserves()
+            click("panel-display")
+            for(mode in org.frostbox.core.ScalingMode.entries) {
+                click("scale-${mode.name}")
+                ui.waitUntil(5000){viewport.mode==mode}
+                preserves();shot("display-${mode.name.lowercase()}")
+                resume();shot("image-${mode.name.lowercase()}")
+                val transform=viewport.transform!!
+                Assert.assertEquals(400 to 300,transform.map(viewport.width/2f,viewport.height/2f))
+                // Ordinary app-local touch, not Android-wide injection. WM_LBUTTONDOWN is logged in the PE.
+                ui.activityRule.scenario.onActivity {
+                    val x=viewport.width/2f;val y=viewport.height/2f;val now=android.os.SystemClock.uptimeMillis()
+                    for(action in listOf(android.view.MotionEvent.ACTION_DOWN,android.view.MotionEvent.ACTION_UP)) {
+                        val e=android.view.MotionEvent.obtain(now,now,action,x,y,0);try{viewport.dispatchTouchEvent(e)}finally{e.recycle()}
+                    }
+                }
+                ui.activityRule.scenario.onActivity {
+                    val x=surface.left+surface.width*.25f;val y=surface.top+surface.height*.5f
+                    val now=android.os.SystemClock.uptimeMillis()
+                    for(action in listOf(android.view.MotionEvent.ACTION_DOWN,android.view.MotionEvent.ACTION_UP)) {
+                        val e=android.view.MotionEvent.obtain(now,now,action,x,y,0);try{viewport.dispatchTouchEvent(e)}finally{e.recycle()}
+                    }
+                }
+                click("game-panel-open");click("panel-display")
+            }
+            click("panel-controls");shot("controller-settings")
+            click("panel-performance");click("hud-detailed");resume();shot("performance-hud")
+            ui.onNodeWithTag("game-hud").assertExists();sample("C-resumed-after-scaling")
+            // Activity-local Back dispatcher is permitted and exercises the same app navigation handler.
+            ui.activityRule.scenario.onActivity {it.onBackPressedDispatcher.onBackPressed()}
+            ui.onNodeWithTag("game-panel").assertExists();preserves();resume()
+            ui.activityRule.scenario.onActivity {it.requestedOrientation=ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE}
+            Thread.sleep(1000);preserves()
+            ui.activityRule.scenario.onActivity {it.requestedOrientation=ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE}
+            Thread.sleep(1000);preserves()
+            click("game-panel-open");click("panel-home");click("display-stop");shot("stop-dialog");click("panel-confirm-stop")
+            val r=result(p.id).put("panelRun",run).put("surfaceCreates",surface.surfaceCreates).put("surfaceDestroysAfterStop",surface.surfaceDestroys)
+            r.put("overheadSamples",samples);File(evidence,"result.json").writeText(r.toString(2))
+            Assert.assertTrue(r.toString(),r.optBoolean("cancelled"));Assert.assertTrue(r.optInt("gpuFrames")>50)
+            Assert.assertEquals("Four scaled center clicks reach PE; UI clicks do not leak",4,r.optString("stdout").split("PANEL_CLICK=400,300").size-1)
+            Assert.assertEquals("Four off-center viewport clicks use the inverse transform",4,r.optString("stdout").split("PANEL_CLICK=200,300").size-1)
+            val saved=runBlocking{repository.profiles.first().single {it.id==p.id}}
+            Assert.assertEquals(org.frostbox.core.ScalingMode.STRETCH,saved.experience.scaling);Assert.assertEquals("detailed",saved.experience.hud)
+            // Real repeat Play uses the same prefix and persisted settings.
+            click("play-${p.id}");ui.waitUntil(60000){(model.launcher.guestWsi.value?.frames?.value ?: 0)>=5}
+            click("game-panel-open");click("panel-display");ui.onNodeWithTag("scale-STRETCH").assertIsSelected();click("panel-resume")
+            Assert.assertNotSame(gpu,model.launcher.guestWsi.value)
+            val second=model.launcher.guestWsi.value
+            click("game-panel-open");click("panel-home");click("panel-restart");click("panel-confirm-stop")
+            ui.waitUntil(60000){val next=model.launcher.guestWsi.value;next!=null && next!==second && next.frames.value>=5}
+            File(context.filesDir,"game-panel-profile-id.txt").writeText(p.id)
+        } finally {ui.runOnIdle {model.launcher.stop()};ui.waitUntil(45000){model.launcher.activeId.value==null}}
     }
     @Test fun dxvkLibraryImportAndPlay() {
         val root=File(context.cacheDir,"launcher-qa")
@@ -290,7 +468,7 @@ class LibraryDeviceTest {
                 Thread.sleep(500)
             }
         } finally {
-            if(ui.onAllNodesWithTag("display-stop").fetchSemanticsNodes().isNotEmpty())ui.onNodeWithTag("display-stop").performClick()
+            stopDisplay()
         }
         var terminal: JSONObject?=null
         ui.waitUntil(30000){terminal=repository.readRun(p.id);terminal?.optString("runId")!=previous && terminal?.optString("launcherPhase") in listOf("Finished","Failed")}
@@ -340,7 +518,7 @@ class LibraryDeviceTest {
                 Thread.sleep(500)
             }
         } finally {
-            if(ui.onAllNodesWithTag("display-stop").fetchSemanticsNodes().isNotEmpty())ui.onNodeWithTag("display-stop").performClick()
+            stopDisplay()
         }
         var terminal: JSONObject?=null
         ui.waitUntil(30000) { terminal=repository.readRun(original.id);terminal?.optString("launcherPhase") in listOf("Finished","Failed") }
@@ -379,7 +557,7 @@ class LibraryDeviceTest {
                 }
                 Thread.sleep(500)
             }
-        } finally {if(ui.onAllNodesWithTag("display-stop").fetchSemanticsNodes().isNotEmpty())ui.onNodeWithTag("display-stop").performClick()}
+        } finally {stopDisplay()}
         var r: JSONObject?=null
         ui.waitUntil(30000){r=repository.readRun(id);r?.optString("launcherPhase") in listOf("Finished","Failed")}
         val report=checkNotNull(r).put("distinctPixelCopies",hashes.size).put("automatedInputAttempted",input).put("gameplay",false)
@@ -416,7 +594,7 @@ class LibraryDeviceTest {
                 }
                 Thread.sleep(500)
             }
-        } finally {if(ui.onAllNodesWithTag("display-stop").fetchSemanticsNodes().isNotEmpty())ui.onNodeWithTag("display-stop").performClick()}
+        } finally {stopDisplay()}
         var r: JSONObject?=null
         ui.waitUntil(30000){r=repository.readRun(id);r?.optString("launcherPhase") in listOf("Finished","Failed")}
         val report=checkNotNull(r).put("distinctPixelCopies",hashes.size).put("selectorEnterAttempted",accepted).put("gameplay",false)
@@ -462,7 +640,7 @@ class LibraryDeviceTest {
                 if(commands.isFile)runCatching {JSONObject(commands.readText())}.getOrNull()?.let {input(it)}
                 Thread.sleep(500)
             }
-        } finally {if(ui.onAllNodesWithTag("display-stop").fetchSemanticsNodes().isNotEmpty())ui.onNodeWithTag("display-stop").performClick()}
+        } finally {stopDisplay()}
         var r: JSONObject?=null
         ui.waitUntil(30000){r=repository.readRun(id);r?.optString("launcherPhase") in listOf("Finished","Failed")}
         val report=checkNotNull(r).put("distinctPixelCopies",hashes.size).put("androidInputEvents",inputEvents).put("physicalInputValidated",false)
@@ -507,7 +685,7 @@ class LibraryDeviceTest {
                 }
                 Thread.sleep(500)
             }
-        } finally {if(ui.onAllNodesWithTag("display-stop").fetchSemanticsNodes().isNotEmpty())ui.onNodeWithTag("display-stop").performClick()}
+        } finally {stopDisplay()}
         var r: JSONObject?=null
         ui.waitUntil(30000){r=repository.readRun(id);r?.optString("launcherPhase") in listOf("Finished","Failed")}
         val report=checkNotNull(r).put("distinctPixelCopies",hashes.size).put("androidInputEvents",actions).put("forceGfxDirect",true).put("physicalInputValidated",false)

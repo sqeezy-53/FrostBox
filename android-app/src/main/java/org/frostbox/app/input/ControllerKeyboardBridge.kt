@@ -6,14 +6,14 @@ import org.json.JSONObject
 
 /** Explicit per-game keyboard/mouse mode. Never publishes a virtual XInput device. */
 class ControllerKeyboardBridge(private val monitor: ControllerMonitor,private val display: DisplaySession,
-    private val profile: KeyboardControllerProfile,scope: CoroutineScope): AutoCloseable {
+    @Volatile private var profile: KeyboardControllerProfile,scope: CoroutineScope): AutoCloseable {
     private var keys=emptySet<Int>();private var left=false;private var right=false
     private var dx=0f;private var dy=0f;private var keyEvents=0;private var mousePackets=0
     private val job=scope.launch {
         var previous=android.os.SystemClock.uptimeMillis()
         try {while(isActive) {
             val now=android.os.SystemClock.uptimeMillis();val dt=((now-previous)/1000f).coerceIn(0f,.05f);previous=now
-            val pad=monitor.state.value.pads.firstOrNull {it.connected} ?: GamepadSnapshot(0,"")
+            val pad=monitor.runtimePads().firstOrNull {it.connected} ?: GamepadSnapshot(0,"")
             val ready=display.hasInputTarget()
             val target=if(ready)controllerKeyboardKeys(pad,profile)else emptySet()
             (keys-target).forEach {display.key(it,true);keyEvents++};(target-keys).forEach {display.key(it);keyEvents++};keys=target
@@ -26,6 +26,7 @@ class ControllerKeyboardBridge(private val monitor: ControllerMonitor,private va
         }} finally {release()}
     }
     private fun release(){keys.forEach {display.key(it,true)};keys=emptySet();if(left || right)display.relativePointer(0,0,(if(left)4 else 0)or(if(right)16 else 0));left=false;right=false;dx=0f;dy=0f}
+    fun update(value: KeyboardControllerProfile){value.validate();profile=value}
     fun report()=JSONObject().put("mode","keyboard-mouse").put("keyEvents",keyEvents).put("mousePackets",mousePackets)
     override fun close(){job.cancel();release()}
 }

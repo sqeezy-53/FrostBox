@@ -14,7 +14,7 @@ import kotlinx.serialization.Serializable
     val deadZone: Float = 0.15f, val diagnostics: Boolean = true,
     val environment: String = "", val lastLaunch: Long? = null, val addedAt: Long? = null,
     val arguments: List<String> = emptyList(), val workingDirectory: String = ".",
-    val winePrefixId: String? = null, val contentGeneration: String? = null, val coverFile: String? = null, val controllerMapping: ControllerMapping? = null, val touchProfile: TouchProfile = TouchProfile(),val audioEnabled: Boolean=false,val controllerMode: String="xinput",val keyboardController: KeyboardControllerProfile=KeyboardControllerProfile()
+    val winePrefixId: String? = null, val contentGeneration: String? = null, val coverFile: String? = null, val controllerMapping: ControllerMapping? = null, val touchProfile: TouchProfile = TouchProfile(),val audioEnabled: Boolean=false,val controllerMode: String="xinput",val keyboardController: KeyboardControllerProfile=KeyboardControllerProfile(), val experience: GameExperience=GameExperience()
 ) {
     fun validate() {
         require(java.util.UUID.fromString(id).toString()==id) { "Invalid profile ID" }
@@ -34,7 +34,7 @@ import kotlinx.serialization.Serializable
         require(workingDirectory=="." || workingDirectory=="content" || workingDirectory.startsWith("content/")) { "Working directory must be private content" }
         if(workingDirectory!=".") validateRelativePath(workingDirectory)
         winePrefixId?.let { require(java.util.UUID.fromString(it).toString()==it) { "Invalid prefix ID" } }
-        controllerMapping?.validate();touchProfile.validate();keyboardController.validate();require(controllerMode in setOf("xinput","keyboard"));require(!(touchProfile.enabled && touchProfile.mode=="xinput" && controllerMode=="keyboard")){"XInput touch requires the XInput controller mode"}
+        experience.validate();controllerMapping?.validate();touchProfile.validate();keyboardController.validate();require(controllerMode in setOf("xinput","keyboard"));require(!(touchProfile.enabled && touchProfile.mode=="xinput" && controllerMode=="keyboard")){"XInput touch requires the XInput controller mode"}
         coverFile?.let {require(it.matches(Regex("cover-[a-f0-9-]+\\.jpg"))) {"Invalid cover file"}}
         parseEnvironment(environment)
     }

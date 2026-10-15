@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.1-alpha-game-experience.1 — partial UI milestone — 2026-10-15
+
+- Real Compose Game Panel above a stable SurfaceView: Resume, confirmed Stop/Restart, Back, diagnostics and host-only settings. No guest pause claim.
+- Auto/Fit/Fill/Stretch with per-game persistence, inverse touch geometry and explicit output-buffer/backbuffer distinction. Desktop resolution changes are Next Launch.
+- Per-game live controller mapping, keyboard/mouse camera speed, touch layout, AudioTrack gain/mute and a labelled sampled host-Present HUD.
+- POCO lifecycle fixture:973/975 Presents, eight exact Win32 clicks, Surface identity preserved across panel/scaling/rotation, Stop/repeat/Restart PASS.
+- Twelve focused regression groups pass, including actual x86/x64 audio; no changed qualified runtime assets/native libraries (98 compared).
+- Physical 8BitDo: user confirmed Windows D3D11 cube control, panel navigation and return to control after Resume; Stop and repeated Play of the same QA profile also physically confirmed (14889/3217 host Presents). Frozen frame-clock and pre-dispatch wait defects were fixed in the manual harness.
+- KARLSON startup did not qualify in two preserved-profile attempts; first logged Device Lost/FMOD failure, second stalled before presentation. Gameplay and physical-controller qualification are separate gates.
+- Full binary release remains blocked by the existing distribution privacy audit. See [Game Experience](docs/GAME_EXPERIENCE.md).
+
 ## 0.7.0-alpha.foundation.1 — 2026-10-15
 
 - Real PRIVATE GitHub source baseline, main/develop, pinned Actions, scoped CI and issue/PR templates. SDK setup failure fixed and real remote CI passed.
@@ -137,8 +148,6 @@ Historical releases:
 
 > Current: **0.4.0-dev.2**, committed child Edit Unicode recovered on POCO.
 > [Exact diagnosis, tests and limits](docs/WIN32_TEXT_INPUT_RECOVERY.md).
-
-# Changelog
 
 ## 0.4.0-dev.2 — Win32 text input recovery — 2026-10-12
 

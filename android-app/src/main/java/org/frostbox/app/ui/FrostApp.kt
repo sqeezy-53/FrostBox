@@ -36,8 +36,16 @@ private val FrostColors = HorizonColors
     val guestWsi by model.launcher.guestWsi.collectAsStateWithLifecycle()
     val displayState by model.display.status.collectAsStateWithLifecycle()
     if(displayState.active) {
-        MaterialTheme(colorScheme=FrostColors,shapes=HorizonShapes) { Surface(Modifier.fillMaxSize()) {
-            org.frostbox.app.display.WindowsScreen(model.display,model.launcher::stop,guestWsi,profiles.firstOrNull {it.id==activeProfile}?.touchProfile,model.controllers)
+        MaterialTheme(colorScheme=FrostColors.copy(primary=Color(0xFF7BE3C8),onPrimary=Color(0xFF03251E),
+            primaryContainer=Color(0xFF244B44),onPrimaryContainer=Color(0xFFB0F5DF),
+            surface=Color(0xFF171F25),surfaceTint=Color(0xFF7BE3C8)),shapes=HorizonShapes) { Surface(Modifier.fillMaxSize()) {
+            val p=profiles.firstOrNull {it.id==activeProfile}
+            val sessions by model.launcher.sessions.collectAsStateWithLifecycle()
+            val audio by model.launcher.audioState.collectAsStateWithLifecycle()
+            val settingsError by model.gameSettingsFailure.collectAsStateWithLifecycle()
+            org.frostbox.app.display.WindowsScreen(model.display,model.launcher::stop,guestWsi,p?.touchProfile,model.controllers,
+                profile=p,phase=sessions[activeProfile]?.phase?.name ?: "Starting",audio=audio,diagnostics=sessions[activeProfile]?.result ?: "{}",settingsError=settingsError,
+                change={change->p?.let {model.gameSettings(it.id,change)}},restart={p?.let {model.restartGame(it.id)}})
         } }
         return
     }
@@ -246,6 +254,9 @@ private val FrostColors = HorizonColors
 }
 
 @Composable private fun GameSettings(p: GameProfile,profiles: List<GameProfile>,model: FrostModel,back: ()->Unit) {
+    var experience by remember(p.id) {mutableStateOf(p.experience)}
+    Text(stringResource(R.string.gx_display))
+    org.frostbox.app.display.ScalingChoices(experience.scaling) {experience=experience.copy(scaling=it)}
     var audioEnabled by rememberSaveable(p.id) {mutableStateOf(p.audioEnabled)}
     var controllerMode by rememberSaveable(p.id) {mutableStateOf(p.controllerMode)}
     var keyboardConfig by remember(p.id) {mutableStateOf(p.keyboardController)}
@@ -331,7 +342,7 @@ private val FrostColors = HorizonColors
     Button(onClick={runCatching {
         val array=JSONArray(args);val arguments=List(array.length()) { index -> require(array.get(index) is String);array.getString(index) }
         parseLaunchEnvironment(env)
-        p.copy(runtimeVariant=runtimeVariant,graphicsApi=graphicsApi,name=name.trim(),executable=exe,workingDirectory=work,arguments=arguments,environment=env,winePrefixId=prefix,graphics=graphics,width=width.toInt(),height=height.toInt(),controllerMapping=if(controllerOverride)controllerConfig else null,touchProfile=touchConfig,controllerMode=controllerMode,keyboardController=keyboardConfig,audioEnabled=audioEnabled).also { it.validate() }
+        p.copy(experience=experience,runtimeVariant=runtimeVariant,graphicsApi=graphicsApi,name=name.trim(),executable=exe,workingDirectory=work,arguments=arguments,environment=env,winePrefixId=prefix,graphics=graphics,width=width.toInt(),height=height.toInt(),controllerMapping=if(controllerOverride)controllerConfig else null,touchProfile=touchConfig,controllerMode=controllerMode,keyboardController=keyboardConfig,audioEnabled=audioEnabled).also { it.validate() }
     }.onSuccess { model.save(it);back() }.onFailure { error=it.message ?: "Invalid settings" }},modifier=Modifier.testTag("save-profile")) { Text("Save") }
     TextButton(onClick=back,modifier=Modifier.testTag("settings-back")) { Text("Back") }
 }

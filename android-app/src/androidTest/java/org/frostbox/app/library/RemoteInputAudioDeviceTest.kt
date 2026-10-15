@@ -65,6 +65,44 @@ class RemoteInputAudioDeviceTest {
   val r=done(p,"raw-input");assertEquals(r.toString(),42,r.optInt("exitCode",-1));val out=r.optString("stdout")
   assertTrue(out,out.contains("RAW_REGISTER=1"));assertTrue(out,out.contains("RAW_KEY vk=87 scan=17"));assertFalse(out,out.contains("RAW_KEY vk=87 scan=0"));assertTrue(out,out.contains("RAW_BUFFER_ERRORS=0"));assertTrue("Foreground/focus mismatch: $out",Regex("FOCUS hwnd=([1-9]\\d*) fg=\\1 focus=\\1 active=\\1").containsMatchIn(out));assertTrue("Raw device enumeration/handle lookup incomplete: $out",out.contains("RAW_DEVICE_INFO_ERRORS=0"))
  }
+ @Test fun audioGainMuteAndResetOnAndroidOutput()=runBlocking {
+  val scope=CoroutineScope(SupervisorJob()+Dispatchers.IO)
+  val prefix=java.util.UUID.randomUUID().toString()
+  lateinit var output: org.frostbox.app.audio.AndroidPcmOutput
+  val hub=org.frostbox.app.audio.AudioHub(prefix,scope){org.frostbox.app.audio.AndroidPcmOutput(inst.targetContext).also {output=it}}
+  val socket=android.net.LocalSocket()
+  try {
+   socket.connect(android.net.LocalSocketAddress("frost-audio-${android.os.Process.myUid()}-$prefix"));socket.soTimeout=3000
+   val input=java.io.DataInputStream(socket.inputStream)
+   fun packet(op: Int,frames: Int=0) {
+    socket.outputStream.write(java.nio.ByteBuffer.allocate(16).order(java.nio.ByteOrder.LITTLE_ENDIAN).putInt(org.frostbox.core.AudioWire.MAGIC).putInt(op).putInt(frames).putInt(frames*4).array())
+    if(frames>0)socket.outputStream.write(ByteArray(frames*4)) // Silent PCM: no audibility assertion.
+    val reply=ByteArray(32);input.readFully(reply)
+    assertEquals(0,java.nio.ByteBuffer.wrap(reply).order(java.nio.ByteOrder.LITTLE_ENDIAN).getInt(4))
+   }
+   packet(1);packet(2)
+   fun drain() {
+    val end=android.os.SystemClock.elapsedRealtime()+3000
+    do {
+     Thread.sleep(10);packet(6);Thread.sleep(5)
+     val state=JSONObject(hub.report.value)
+     if(state.optLong("receivedFrames")==state.optLong("consumedFrames"))return
+    }while(android.os.SystemClock.elapsedRealtime()<end)
+    error("Silent AudioTrack buffer failed to drain: ${hub.report.value}")
+   }
+   for(gain in listOf(0f,.4f,1f)) {
+    hub.setGain(gain);packet(3,output.capacity);drain()
+    assertEquals(gain,output.appliedGain,0f)
+    assertEquals(gain.toDouble(),JSONObject(hub.report.value).getDouble("outputGain"),.001)
+   }
+   packet(4);packet(5);hub.setGain(.4f);packet(2);packet(3,output.capacity);drain()
+   assertEquals(.4f,output.appliedGain,0f)
+   val r=JSONObject(hub.report.value).put("androidTrackGainAccepted",true).put("windowsFixture",false).put("audibilityVerified",false)
+   assertEquals(r.toString(),r.getLong("totalReceivedFrames"),r.getLong("totalConsumedFrames"))
+   File(inst.targetContext.filesDir,"game-experience-audio-gain.json").writeText(r.toString(2))
+   packet(4)
+  } finally {socket.close();hub.close();withTimeout(3000){hub.awaitClosed()};scope.cancel()}
+ }
  @Test fun wasapiPcmToActualAndroidOutput() {
   Assume.assumeTrue("Audio device test must be explicitly selected",InstrumentationRegistry.getArguments().getString("frostbox.audioQa")=="true")
   val p=profile("wasapi-audio-x64.exe",audio=true);ui.activityRule.scenario.onActivity{model.play(p)}

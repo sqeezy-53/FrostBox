@@ -45,6 +45,13 @@ class DisplayDeviceTest {
         context.assets.open("launcher/gui-x64.exe").use { source -> File(root,"gui.exe").outputStream().use { source.copyTo(it) } }
         context.assets.open("launcher/compat-lab-x64.exe").use { source -> File(root,"lab.exe").outputStream().use { source.copyTo(it) } }
     }
+    private fun panelAction(tag: String) {
+        if(ui.onAllNodesWithTag("game-panel").fetchSemanticsNodes().isEmpty())ui.onNodeWithTag("game-panel-open").performClick()
+        if(tag!="display-stop")ui.onNodeWithTag("panel-compatibility").performClick()
+        if(tag=="display-keyboard" || tag=="display-escape")ui.onNodeWithTag("panel-controls").performClick()
+        ui.onNodeWithTag(tag).performScrollTo().performClick()
+        if(tag=="display-stop")ui.onNodeWithTag("panel-confirm-stop").performClick()
+    }
     private fun add(file: String="gui.exe"): GameProfile {
         val before=runBlocking { repo.profiles.first().map { it.id }.toSet() }
         ui.onNodeWithTag("nav-Library").performClick();ui.onNodeWithTag("add-game").performClick()
@@ -62,7 +69,9 @@ class DisplayDeviceTest {
     }
     private fun start(p: GameProfile,ready: String="FROSTBOX_GUI_READY") {
         // Library now virtualizes large catalogs; an off-screen card has no node yet.
-        ui.onNodeWithTag("catalog-scroll").performScrollToNode(hasTestTag("play-${p.id}"))
+        ui.onNodeWithTag("library-search").performTextReplacement(p.name)
+        val records=runBlocking {repo.profiles.first()}.filter {it.name.contains(p.name,true)}.sortedByDescending {it.lastLaunch ?: 0}
+        ui.onNodeWithTag("catalog-scroll").performScrollToIndex(records.indexOfFirst {it.id==p.id})
         ui.onNodeWithTag("play-${p.id}").performScrollTo().performClick()
         try {
             ui.waitUntil(180000) { (model.display.status.value.frames>0 && model.launcher.sessions.value[p.id]?.result?.contains(ready)==true) || model.launcher.sessions.value[p.id]?.phase in listOf(LibraryLauncher.Phase.Failed,LibraryLauncher.Phase.Finished) }
@@ -122,7 +131,7 @@ class DisplayDeviceTest {
             surface {v->model.display.pointer(v.width*.25f,v.height*.4f,0)};Thread.sleep(100)
             key(KeyEvent.KEYCODE_BUTTON_R2,false);Thread.sleep(400);key(KeyEvent.KEYCODE_BUTTON_R2,true)
             ui.waitUntil(10000){model.launcher.sessions.value[p.id]?.result?.contains("FROSTBOX_GUI_MOUSE")==true}
-            ui.onNodeWithTag("display-close").performClick();finish(p,"controller-keyboard-software-route")
+            panelAction("display-close");finish(p,"controller-keyboard-software-route")
         } finally {if(model.launcher.activeId.value!=null)model.launcher.stop()}
     }
     @Test fun touchControlsReachWin32() {
@@ -165,7 +174,7 @@ class DisplayDeviceTest {
         ui.waitUntil(10000) { model.launcher.sessions.value[p.id]?.result?.let { it.contains("FROSTBOX_GUI_MOUSE") && it.contains("FROSTBOX_GUI_KEY") }==true }
         val changed=pixels("after-input")
         Assert.assertTrue(colorCount(changed,0x30ffa0)>1000);Assert.assertTrue(colorCount(changed,0xffe030)>1000);changed.recycle()
-        ui.onNodeWithTag("display-close").performClick();finish(p,"gui-input-close")
+        panelAction("display-close");finish(p,"gui-input-close")
     }
     @Test fun editTextRouteDiagnosis() {
         val p=add("lab.exe");start(p,"LAB_READY")
@@ -242,7 +251,7 @@ class DisplayDeviceTest {
             clear();waitText("LAB_CLEAR_EDIT=","");waitText("LAB_CLEAR_MULTI=","")
             Assert.assertTrue(logs().contains("LAB_CHAR_STATE=258"));Assert.assertTrue(logs().contains("LAB_QUEUE_CHAR=258"))
             Assert.assertEquals(640,model.display.status.value.width);Assert.assertEquals(400,model.display.status.value.height)
-            ui.onNodeWithTag("display-close").performClick();finish(p,"text-extended-close",lab=true)
+            panelAction("display-close");finish(p,"text-extended-close",lab=true)
         } catch(e: Throwable) { pixels("text-extended-failed");evidence(p,"text-extended-failed");model.launcher.stop();throw e }
     }
     @Test fun committedImeAndBack() {
@@ -254,7 +263,7 @@ class DisplayDeviceTest {
             return visible
         }
         try {
-            ui.onNodeWithTag("display-keyboard").performClick();ui.waitUntil(10000) { imeVisible() }
+            panelAction("display-keyboard");ui.waitUntil(10000) { imeVisible() }
             surface { v -> val connection=v.onCreateInputConnection(EditorInfo())
                 Assert.assertTrue(connection.setComposingText("не",1)) }
             Assert.assertFalse("Local preedit must not reach Windows",logs().contains("LAB_EDIT=не"))
@@ -264,7 +273,7 @@ class DisplayDeviceTest {
             ui.waitUntil(10000) { !imeVisible() }
             Assert.assertEquals(p.id,model.launcher.activeId.value)
             evidence(p,"ime-commit-back");pixels("ime-commit-back").recycle()
-            ui.onNodeWithTag("display-close").performClick();finish(p,"ime-close",lab=true)
+            panelAction("display-close");finish(p,"ime-close",lab=true)
         } catch(e: Throwable) { evidence(p,"ime-failed");model.launcher.stop();throw e }
     }
     @Test fun compatibilityLabControlsAndClose() {
@@ -284,8 +293,8 @@ class DisplayDeviceTest {
         click(530,164);ui.waitUntil(10000){logs().contains("LAB_CLEAR")}
         val image=pixels("lab-controls-only");Assert.assertTrue(image.width>0);image.recycle()
         Assert.assertEquals(640,model.display.status.value.width);Assert.assertEquals(400,model.display.status.value.height)
-        ui.onNodeWithTag("display-close").performClick();finish(p,"lab-controls-only",lab=true)
-        start(p,"LAB_READY");ui.onNodeWithTag("display-stop").performClick();finish(p,"lab-repeat-stop",cancel=true,lab=true)
+        panelAction("display-close");finish(p,"lab-controls-only",lab=true)
+        start(p,"LAB_READY");panelAction("display-stop");finish(p,"lab-repeat-stop",cancel=true,lab=true)
     }
     @Test fun compatibilityLabControlsAndUnicode() {
         val p=add("lab.exe");start(p,"LAB_READY")
@@ -329,19 +338,19 @@ class DisplayDeviceTest {
         ui.activityRule.scenario.recreate();ui.waitUntil(20000) { model.display.status.value.frames>=2 }
         click(70,116);waitLog("LAB_COUNT=Count: 2")
         click(530,164);waitLog("LAB_CLEAR")
-        ui.onNodeWithTag("display-close").performClick();finish(p,"lab-controls-unicode",lab=true)
-        start(p,"LAB_READY");ui.onNodeWithTag("display-stop").performClick();finish(p,"lab-repeat-stop",cancel=true,lab=true)
+        panelAction("display-close");finish(p,"lab-controls-unicode",lab=true)
+        start(p,"LAB_READY");panelAction("display-stop");finish(p,"lab-repeat-stop",cancel=true,lab=true)
     }
     @Test fun tenGuiLaunches() {
         val p=add()
         repeat(10) { index -> start(p);val image=pixels("repeat-$index");Assert.assertTrue(colorCount(image,0xe03030)>1000);image.recycle()
-            ui.onNodeWithTag("display-close").performClick();finish(p,"repeat-$index") }
+            panelAction("display-close");finish(p,"repeat-$index") }
     }
     @Test fun recreateSurfaceAndStop() {
         val p=add();start(p);ui.activityRule.scenario.recreate()
         ui.waitUntil(20000) { model.display.status.value.frames>=2 }
         val image=pixels("recreated");Assert.assertTrue(colorCount(image,0xe03030)>1000);image.recycle()
-        ui.onNodeWithTag("display-stop").performClick();finish(p,"recreate-stop",true)
+        panelAction("display-stop");finish(p,"recreate-stop",true)
     }
     @Test fun runtimeDeathClosesDisplay() {
         val p=add();start(p)
@@ -351,6 +360,6 @@ class DisplayDeviceTest {
         ui.waitUntil(20000) { model.launcher.activeId.value==null }
         Assert.assertEquals(LibraryLauncher.Phase.Failed,model.launcher.sessions.value[p.id]?.phase)
         Assert.assertFalse(model.display.status.value.active);evidence(p,"runtime-death")
-        start(p);ui.onNodeWithTag("display-close").performClick();finish(p,"after-recovery")
+        start(p);panelAction("display-close");finish(p,"after-recovery")
     }
 }
