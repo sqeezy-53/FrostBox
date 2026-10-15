@@ -1,0 +1,9 @@
+* text=auto
+*.bat text eol=crlf
+gradle/wrapper/gradle-wrapper.jar binary
+# Preserve upstream license text verbatim, including its whitespace.
+third-party/licenses/* -whitespace
+android-app/src/main/assets/licenses/*.txt -whitespace
+
+# Unified-diff context lines must retain upstream whitespace.
+*.patch -whitespace

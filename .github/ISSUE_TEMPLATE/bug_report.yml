@@ -1,0 +1,21 @@
+name: Bug report
+description: Report a reproducible FrostBox problem
+body:
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: FrostBox commit, Android build, device, GPU/driver, runtime versions if applicable
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction and expected / actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs and measurements
+      description: Remove personal data. No game binaries. State whether this is build-only, emulator or physical hardware.

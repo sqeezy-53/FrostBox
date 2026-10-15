@@ -1,0 +1,13 @@
+--- a/src/wrapped/wrappedvulkan.c
++++ b/src/wrapped/wrappedvulkan.c
+@@ -22,6 +22,10 @@
+ 
+ const char* vulkanName = "libvulkan.so.1";
+ #define LIBNAME vulkan
++#ifdef __ANDROID__
++// Public Android loader; keep Linux SONAME first and the existing Vulkan ABI wrapper.
++#define ALTNAME "libvulkan.so"
++#endif
+ 
+ typedef void(*vFpUp_t)      (void*, uint64_t, void*);
+ 

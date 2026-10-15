@@ -1,0 +1,12 @@
+--- a/dlls/win32u/sysparams.c
++++ b/dlls/win32u/sysparams.c
+@@ -5481,6 +5481,9 @@
+     TEXTMETRICW tm;
+     UINT ret;
+     if (!metric) metric = &tm;
++    /* NtGdiGetTextMetricsW may fail in a fontless runtime. Do not use
++     * uninitialized heights/leading in persistent nonclient metrics. */
++    *metric = (TEXTMETRICW){.tmHeight = -1};
+     hfont = NtGdiHfontCreate( lf, sizeof(*lf), 0, 0, NULL );
+     if (!hfont || !(hfontsav = NtGdiSelectFont( hdc, hfont )))
+     {

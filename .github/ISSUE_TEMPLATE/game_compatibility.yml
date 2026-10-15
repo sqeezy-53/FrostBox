@@ -1,0 +1,34 @@
+name: Game compatibility
+description: Report observed behavior without uploading game files
+body:
+  - type: input
+    id: game
+    attributes:
+      label: Game name and version
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Architecture, graphics API and environment
+      description: Windows x86/x64, DirectX/Vulkan version, FrostBox commit/runtime, GPU/driver, Android device/version. No serial numbers.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Actual versus expected behavior
+      description: Distinguish boot, menu, level, gameplay, physical controller and audible audio.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps and profile settings
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs and measurements
+      description: No game binaries, saves, personal paths, identifiers or credentials. State the measurement source.

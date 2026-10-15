@@ -1,0 +1,13 @@
+name: Feature request
+description: Propose a concrete user need
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and intended behavior
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Acceptance criteria and relevant constraints

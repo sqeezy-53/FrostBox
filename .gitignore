@@ -1,0 +1,36 @@
+.gradle/
+.kotlin/
+**/build/
+**/.cxx/
+local.properties
+.idea/
+*.iml
+*.jks
+*.keystore
+__pycache__/
+
+# Local evidence and obsolete editor copies are kept on disk, never published.
+docs/evidence/
+*.bak
+*.bak-*
+*.orig
+*.rej
+*~
+.env
+.env.*
+!.env.example
+*.apk
+*.aab
+*.keystore
+*.pem
+*.p12
+*.exe
+*.dll
+*.msi
+*.so
+*.elf
+*.log
+# Runtime archives and extracted user data are not source inputs.
+third-party/sources/
+artifacts/
+local-evidence/

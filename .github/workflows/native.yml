@@ -1,0 +1,15 @@
+name: Native Tests
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Host native contract and process lifecycle
+        run: |
+          cmake -S runtime/native -B build/native -G Ninja -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build/native -j2
+          ctest --test-dir build/native --output-on-failure

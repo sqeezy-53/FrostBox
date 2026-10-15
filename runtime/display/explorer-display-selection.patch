@@ -1,0 +1,10 @@
+--- a/programs/explorer/desktop.c
++++ b/programs/explorer/desktop.c
+@@ -1015,6 +1015,7 @@
+             RegQueryValueExW( hkey, L"Graphics", 0, NULL, (LPBYTE)buffer, &count );
+             RegCloseKey( hkey );
+         }
++        if (GetEnvironmentVariableW(L"FROSTBOX_DISPLAY", NULL, 0)) lstrcpyW(buffer, L"frost");
+     }
+     else lstrcpynW( buffer, driver, ARRAY_SIZE( buffer ));
+ 

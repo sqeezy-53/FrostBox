@@ -1,0 +1,20 @@
+<resources>
+    <string name="library_game_actions">Действия игры</string>
+    <string name="library_remove_action">Удалить из библиотеки</string>
+    <string name="library_remove_title">Удалить игру?</string>
+    <string name="library_remove_message">Игра будет удалена из библиотеки FrostBox. Исходные файлы, сохранения и Wine prefix останутся на месте.</string>
+    <string name="library_clear_action">Очистить библиотеку</string>
+    <string name="library_clear_title">Удалить все игры из списка?</string>
+    <string name="library_clear_message">Записей в библиотеке: %1$d. Будут удалены только записи списка. Исходные EXE, импортированные ресурсы, Wine prefixes, сохранения и DXVK cache останутся на месте.</string>
+    <string name="library_cancel">Отмена</string>
+    <string name="library_delete">Удалить</string>
+    <string name="library_stop_title">Сначала остановите игру</string>
+    <string name="library_stop_first">Управление библиотекой недоступно во время активной сессии. Сначала остановите игру или дождитесь завершения операции runtime.</string>
+    <string name="library_ok">Понятно</string>
+    <string name="library_empty_title">Библиотека пуста</string>
+    <string name="library_empty_message">Добавьте Windows EXE. Импорт не запускает приложение автоматически.</string>
+    <string name="library_add_game">Добавить игру</string>
+    <string name="library_updating">Обновление библиотеки…</string>
+    <string name="library_record_removed">Запись удалена. Игровые файлы и Wine prefix сохранены.</string>
+    <string name="library_cleared">Библиотека очищена. Файлы игр, сохранения и Wine prefixes сохранены.</string>
+</resources>

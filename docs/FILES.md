@@ -1,0 +1,146 @@
+# Source file inventory — 0.3.0-dev.2
+
+129 source/documentation files; excludes builds, runtime binaries, local.properties, toolchains and keys.
+
+- `.gitattributes`
+- `.github/ISSUE_TEMPLATE/bug_report.yml`
+- `.github/ISSUE_TEMPLATE/runtime_gate.yml`
+- `.github/workflows/build.yml`
+- `.github/workflows/runtime.yml`
+- `.github/workflows/wine-prefix.yml`
+- `.gitignore`
+- `ARCHITECTURE.md`
+- `CHANGELOG.md`
+- `CONTRIBUTING.md`
+- `LICENSE`
+- `README.en.md`
+- `README.md`
+- `SECURITY.md`
+- `TODO.md`
+- `android-app/build.gradle.kts`
+- `android-app/src/androidTest/java/org/frostbox/app/runtime/BionicDeviceTest.kt`
+- `android-app/src/androidTest/java/org/frostbox/app/runtime/LibraryDeviceTest.kt`
+- `android-app/src/androidTest/java/org/frostbox/app/runtime/PrefixDeviceTest.kt`
+- `android-app/src/androidTest/java/org/frostbox/app/runtime/RuntimeDeviceTest.kt`
+- `android-app/src/androidTest/java/org/frostbox/app/runtime/RuntimeStressDeviceTest.kt`
+- `android-app/src/androidTest/java/org/frostbox/app/runtime/WineDeviceTest.kt`
+- `android-app/src/androidTest/java/org/frostbox/app/runtime/WineStressDeviceTest.kt`
+- `android-app/src/debug/AndroidManifest.xml`
+- `android-app/src/debug/java/org/frostbox/app/validation/FixtureDocumentsProvider.kt`
+- `android-app/src/debug/java/org/frostbox/app/validation/ImportFixtureProvider.kt`
+- `android-app/src/main/AndroidManifest.xml`
+- `android-app/src/main/assets/licenses/Apache-2.0.txt`
+- `android-app/src/main/assets/licenses/DEPENDENCIES.md`
+- `android-app/src/main/assets/licenses/FrostBox-MIT.txt`
+- `android-app/src/main/assets/licenses/LGPL-2.1.txt`
+- `android-app/src/main/assets/licenses/NDK-NOTICE.txt`
+- `android-app/src/main/java/org/frostbox/app/FrostModel.kt`
+- `android-app/src/main/java/org/frostbox/app/MainActivity.kt`
+- `android-app/src/main/java/org/frostbox/app/data/ManagedFiles.kt`
+- `android-app/src/main/java/org/frostbox/app/data/ProfileRepository.kt`
+- `android-app/src/main/java/org/frostbox/app/data/TreeImporter.kt`
+- `android-app/src/main/java/org/frostbox/app/diagnostics/DiagnosticLog.kt`
+- `android-app/src/main/java/org/frostbox/app/input/ControllerMonitor.kt`
+- `android-app/src/main/java/org/frostbox/app/input/ControllerWindowCallback.kt`
+- `android-app/src/main/java/org/frostbox/app/runtime/AndroidWineManager.kt`
+- `android-app/src/main/java/org/frostbox/app/runtime/LibraryLauncher.kt`
+- `android-app/src/main/java/org/frostbox/app/runtime/NativeRuntime.kt`
+- `android-app/src/main/java/org/frostbox/app/runtime/RuntimeProbeClient.kt`
+- `android-app/src/main/java/org/frostbox/app/runtime/RuntimeProbeService.kt`
+- `android-app/src/main/java/org/frostbox/app/runtime/WineRuntimeClient.kt`
+- `android-app/src/main/java/org/frostbox/app/thermal/ThermalMonitor.kt`
+- `android-app/src/main/java/org/frostbox/app/ui/FrostApp.kt`
+- `android-app/src/main/res/drawable/frostbox_mark.xml`
+- `android-app/src/main/res/mipmap-anydpi-v33/ic_launcher.xml`
+- `android-app/src/main/res/mipmap-anydpi/ic_launcher.xml`
+- `android-app/src/main/res/values/colors.xml`
+- `android-app/src/main/res/xml/data_extraction_rules.xml`
+- `android-app/src/test/java/org/frostbox/app/ActivityTest.kt`
+- `android-app/src/test/java/org/frostbox/app/data/RepositoryTest.kt`
+- `benchmarks/README.md`
+- `benchmarks/run-host-wine.py`
+- `build.gradle.kts`
+- `core/build.gradle.kts`
+- `core/src/main/kotlin/org/frostbox/core/Models.kt`
+- `core/src/main/kotlin/org/frostbox/core/PeInspector.kt`
+- `core/src/main/kotlin/org/frostbox/core/Policies.kt`
+- `core/src/test/kotlin/org/frostbox/core/CoreTest.kt`
+- `docs/ANDROID_LAUNCHER_VALIDATION.md`
+- `docs/ANDROID_RUNTIME_VALIDATION.md`
+- `docs/ANDROID_RUNTIME_VALIDATION_0.2.md`
+- `docs/ANDROID_RUNTIME_VALIDATION_0.3-dev.1.md`
+- `docs/BUILD.md`
+- `docs/COMPATIBILITY.md`
+- `docs/FILES.md`
+- `docs/LAUNCHER_USER_GUIDE.md`
+- `docs/LIBRARY_ARCHITECTURE.md`
+- `docs/NATIVE_RUNTIME.md`
+- `docs/POCO.md`
+- `docs/PREFIX_RUNTIME.md`
+- `docs/RUNTIME_VALIDATION.md`
+- `docs/VALIDATION.md`
+- `docs/WINE_BIONIC.md`
+- `gradle.properties`
+- `gradle/wrapper/gradle-wrapper.jar`
+- `gradle/wrapper/gradle-wrapper.properties`
+- `gradlew`
+- `gradlew.bat`
+- `runtime/cpu/box64_backend.cpp`
+- `runtime/cpu/box64_backend.hpp`
+- `runtime/native/CMakeLists.txt`
+- `runtime/native/bridge.cpp`
+- `runtime/native/contract.hpp`
+- `runtime/native/contract_test.cpp`
+- `runtime/native/process_jni.cpp`
+- `runtime/process/probe.cpp`
+- `runtime/process/process.cpp`
+- `runtime/process/process.hpp`
+- `runtime/process/process_test.cpp`
+- `runtime/wine/android_wine_command.cpp`
+- `runtime/wine/android_wine_command.hpp`
+- `runtime/wine/wine_runtime.cpp`
+- `runtime/wine/wine_runtime.hpp`
+- `runtime/wine/wine_smoke.cpp`
+- `scripts/build-box64.py`
+- `scripts/build-runtime-fixtures.py`
+- `scripts/build-windows-fixtures.sh`
+- `scripts/build-wine-bionic.sh`
+- `scripts/check.sh`
+- `scripts/package-wine-probe.py`
+- `scripts/test-device.sh`
+- `scripts/validate-android-runtime.py`
+- `scripts/validate-launcher-release.sh`
+- `scripts/validate-library-runtime.py`
+- `scripts/validate-prefix-runtime.py`
+- `scripts/verify-box64-package.py`
+- `settings.gradle.kts`
+- `tests/guest/bionic-probe.c`
+- `tests/guest/compute-x64.S`
+- `tests/windows/console.c`
+- `tests/windows/dependency.c`
+- `tests/windows/kernel32.def`
+- `tests/windows/math.c`
+- `tests/windows/math.def`
+- `tests/windows/sleep-kernel32.def`
+- `tests/windows/sleep.c`
+- `third-party/README.md`
+- `third-party/licenses/Apache-2.0.txt`
+- `third-party/licenses/Box64-MIT.txt`
+- `third-party/licenses/LGPL-2.1.txt`
+- `third-party/licenses/NDK-NOTICE.txt`
+- `third-party/patches/wine-11.19-android-guest-pe-copy.patch`
+- `third-party/patches/wine-11.19-small-address-space.patch`
+- `third-party/runtime-lock.json`
+
+## 0.4.0-dev.1 prototype additions (not device-qualified)
+
+- `runtime/display/winefrost.drv/{Makefile.in,dllmain.c,frost.c}` — LGPL Wine user-driver adapter.
+- `runtime/display/explorer-display-selection.patch` — display-session driver selection.
+- `android-app/src/main/java/org/frostbox/app/display/{DisplaySession,DisplayPackage,WindowsSurface,WindowsScreen}.kt`.
+- `android-app/src/androidTest/java/org/frostbox/app/runtime/DisplayDeviceTest.kt` — four prepared device gates.
+- `tests/windows/gui.c`, `scripts/build-gui-fixture.sh`, `scripts/build-display-driver.sh`, `scripts/validate-display-runtime.py`.
+- `docs/WINDOWS_DISPLAY_ARCHITECTURE.md`, `WINDOWS_DISPLAY_GUIDE.md`, `WINDOWS_DISPLAY_VALIDATION.md`.
+
+Updated existing LibraryLauncher/FrostModel/FrostApp, PE inspection/repository, AndroidWineManager/JNI,
+Gradle optional display packaging/version, CoreTest, source-build workflow and notices/docs.
+No new repository or duplicate process manager. Baseline Wine package and user prefixes retained.

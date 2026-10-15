@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" role="img" aria-labelledby="title desc">
+<title id="title">FrostBox — Run Windows games on Android</title>
+<desc id="desc">Original FrostBox hexagonal F mark, mint accents on a dark background.</desc>
+<defs><linearGradient id="bg"><stop stop-color="#0b111b"/><stop offset="1" stop-color="#1b1930"/></linearGradient></defs>
+<rect width="1200" height="320" rx="24" fill="url(#bg)"/>
+<path d="M156 70 234 115 234 205 156 250 78 205 78 115Z" fill="#79dfc8"/>
+<path d="M117 115H198V137H142V156H187V178H142V216L117 202Z" fill="#0b111b"/>
+<g font-family="system-ui,Segoe UI,sans-serif"><text x="290" y="142" fill="#ecf4fa" font-size="68" font-weight="700">FrostBox</text>
+<text x="294" y="193" fill="#79dfc8" font-size="28">Run Windows games on Android.</text>
+<text x="294" y="240" fill="#aab8cc" font-size="19">WINE · BOX64 · DXVK · EXPERIMENTAL ALPHA</text></g>
+<path d="M1050 45 1140 97V201L1050 253 960 201V97Z" fill="none" stroke="#7167a8" stroke-width="2" opacity=".35"/>
+</svg>

@@ -1,0 +1,12 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-feature android:name="android.hardware.gamepad" android:required="false" />
+    <uses-feature android:name="android.hardware.vulkan.level" android:required="false" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <application android:label="FrostBox" android:icon="@mipmap/ic_launcher" android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false" android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules" android:supportsRtl="true">
+        <service android:name=".runtime.RuntimeProbeService" android:exported="false" android:process=":runtime" />
+        <service android:name=".display.RuntimeSurfaceService" android:exported="false" android:process=":runtime" />
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity>
+    </application>
+</manifest>

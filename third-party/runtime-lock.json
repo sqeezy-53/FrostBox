@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "box64": {
+    "version": "0.4.4",
+    "commit": "2f130fab1d6e1a4ee8a71dc60cfdfcc839ad192a",
+    "source": "https://codeload.github.com/ptitSeb/box64/tar.gz/2f130fab1d6e1a4ee8a71dc60cfdfcc839ad192a",
+    "sha256": "ce844041092de3f44316bd1c033a3cc10024e5f798c1a8e8a58f046c6d967981",
+    "license": "MIT",
+    "ndk": "27.2.12479018",
+    "androidApi": 29,
+    "localPatches": []
+  },
+  "wineAndroid": {
+    "version": "11.19",
+    "commit": "455e3509b98a6919fd4ad1def4803e08c41c03b2",
+    "source": "https://codeload.github.com/wine-mirror/wine/tar.gz/refs/tags/wine-11.19",
+    "sha256": "73eb0b02dfc0cb0ff4f4d8d36c5786261e9725ac91968ae4d4e4b9a498c4087f",
+    "license": "LGPL-2.1-or-later plus per-file notices",
+    "abi": "x86_64-linux-android29",
+    "ndk": "27.2.12479018",
+    "patches": [
+      "patches/wine-11.19-small-address-space.patch",
+      "patches/wine-11.19-android-guest-pe-copy.patch"
+    ],
+    "status": "selected Bionic Wine base; qualified paths and limits in docs/COMPATIBILITY.md"
+  },
+  "dxvkAndroid": {
+    "version": "2.7.1",
+    "url": "https://github.com/doitsujin/dxvk/releases/tag/v2.7.1",
+    "archiveSha256": "d85ce7c79f57ecd765aaa1b9e7007cb875e6fde9f6d331df799bce73d513ce87",
+    "license": "Zlib",
+    "status": "selected x64 D3D11 and x86 D3D9 fixture paths; games partially qualified"
+  },
+  "windowsDisplay": {
+    "status": "GDI/Unicode and Vulkan WSI test paths; see docs/COMPATIBILITY.md",
+    "wineVersion": "11.19",
+    "sourceCommit": "455e3509b98a6919fd4ad1def4803e08c41c03b2",
+    "license": "LGPL-2.1-or-later",
+    "adapter": "runtime/display/winefrost.drv",
+    "patch": "runtime/display/explorer-display-selection.patch",
+    "baseWineArchiveUnchanged": true
+  },
+  "freetypeDisplay": {
+    "version": "2.14.3",
+    "source": "https://download.savannah.gnu.org/releases/freetype/freetype-2.14.3.tar.xz",
+    "sha256": "36bc4f1cc413335368ee656c42afca65c5a3987e8768cc28cf11ba775e785a5f",
+    "checksumSource": "https://sourceforge.net/projects/freetype/files/freetype2/2.14.3/",
+    "license": "FTL (FreeType License); per-file notices retained",
+    "abi": "x86_64-linux-android29 (Box64 emulated)",
+    "optionalDependencies": false,
+    "status": "built x64/Bionic; Latin/Cyrillic TextOutW pixels observed on POCO API36; see current device report"
+  },
+  "nativeVulkan": {
+    "status": "native Android GPU/render lifecycle observed; distinct from Windows Vulkan",
+    "driver": "system Android Vulkan loader; no distributed driver",
+    "observedGpu": "Adreno (TM) 840",
+    "observedApi": "1.4.295",
+    "renderer": "graphics/vulkan",
+    "rendererLicense": "MIT",
+    "requires": [
+      "Vulkan 1.1",
+      "VK_KHR_swapchain",
+      "VK_EXT_swapchain_maintenance1 feature",
+      "Android WSI instance extensions"
+    ],
+    "evidence": "docs/VULKAN_RENDER_VALIDATION.md"
+  }
+}

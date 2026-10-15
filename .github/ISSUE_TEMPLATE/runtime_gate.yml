@@ -1,0 +1,21 @@
+name: Runtime integration gate
+description: Track an evidence-based runtime milestone
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Smallest executable milestone and acceptance criteria
+    validations:
+      required: true
+  - type: textarea
+    id: abi
+    attributes:
+      label: ABI, loader, process, display and input assumptions
+  - type: textarea
+    id: license
+    attributes:
+      label: Source commits, licenses and redistribution obligations
+  - type: textarea
+    id: result
+    attributes:
+      label: Commands, device logs, result and remaining blockers

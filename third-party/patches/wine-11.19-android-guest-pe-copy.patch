@@ -1,0 +1,16 @@
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -3057,6 +3057,13 @@
+ 
+     TRACE_(module)( "mapping PE file %s at %p-%p\n", debugstr_us(nt_name), ptr, ptr + total_size );
+ 
++    /* Android guest PE images use Wine's existing read/copy path. Writable
++     * shared mappings retain their original semantics in map_file_into_view.
++     * No file-backed executable mapping or Android policy change is needed. */
++#ifdef __ANDROID__
++    removable = TRUE;
++#endif
++
+     /* map the header */
+ 
+     fstat( fd, &st );

@@ -1,0 +1,4 @@
+MODULE = winefrost.drv
+UNIXLIB = winefrost.so
+UNIX_LIBS = -lwin32u $(PTHREAD_LIBS)
+SOURCES = dllmain.c frost.c
