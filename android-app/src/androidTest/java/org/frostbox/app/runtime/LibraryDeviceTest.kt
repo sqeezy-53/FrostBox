@@ -55,8 +55,17 @@ class LibraryDeviceTest {
         java.io.RandomAccessFile(File(root,"slow/large.dat"),"rw").use { it.setLength(8L*1024*1024) }
     }
     private fun click(tag: String) {
-        if(tag.startsWith("play-") || tag.startsWith("details-")) {
-            if(ui.onAllNodesWithTag("catalog-scroll").fetchSemanticsNodes().isNotEmpty())ui.onNodeWithTag("catalog-scroll").performScrollToNode(hasTestTag(tag))
+        if((tag.startsWith("play-") || tag.startsWith("details-")) && ui.onAllNodesWithTag("catalog-scroll").fetchSemanticsNodes().isNotEmpty()) {
+            val id=tag.substringAfter('-')
+            val profiles=runBlocking {repository.profiles.first()};val target=profiles.single {it.id==id}
+            ui.onNodeWithTag("library-search").performTextReplacement(target.name)
+            ui.onNodeWithTag("filter-Все").performClick()
+            val recent=ui.onNodeWithTag("library-sort").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Selected]
+            val matching=profiles.filter {it.name.contains(target.name,true)}
+            val ordered=if(recent)matching.sortedByDescending {it.lastLaunch ?: 0} else matching.sortedBy {it.name.lowercase()}
+            // Address the LazyGrid item, then scroll its child button. Scanning for a deep
+            // descendant can skip an oversized card in the large retained QA catalog.
+            ui.onNodeWithTag("catalog-scroll").performScrollToIndex(ordered.indexOfFirst {it.id==id})
         }
         ui.waitUntil(20000){ui.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()}
         val node=ui.onNodeWithTag(tag)
@@ -195,6 +204,57 @@ class LibraryDeviceTest {
         val stopped=result(original.id,previous=previous)
         Assert.assertTrue(stopped.toString(),stopped.optBoolean("cancelled") || stopped.optBoolean("notStarted"))
         File(context.filesDir,"library-wow64-d3d9-id.txt").writeText(original.id)
+    }
+    @Test fun gamePanelKarlsonPhysicalSession() = physicalPanelSession(false)
+    @Test fun gamePanelControllerPhysicalFixture() = physicalPanelSession(true)
+    private fun physicalPanelSession(fixture: Boolean) {
+        requireGameQa()
+        val profile=if(fixture) {
+            context.assets.open("launcher/game-panel-input-x64.exe").use {input->File(context.cacheDir,"launcher-qa/panel-input.exe").outputStream().use {input.copyTo(it)}}
+            val previous=File(context.filesDir,"game-experience-controller/result.json").takeIf {it.isFile}?.let {JSONObject(it.readText()).optString("profileId")}
+            val expected=context.assets.open("launcher/game-panel-input-x64.exe").use {java.security.MessageDigest.getInstance("SHA-256").digest(it.readBytes()).joinToString(""){b->"%02x".format(b)}}
+            val retained=if(InstrumentationRegistry.getArguments().getString("reuseQaFixtures")=="true")runBlocking {repository.profiles.first().firstOrNull {it.id==previous && it.name=="Controller Panel QA" && it.sha256==expected && it.controllerMode=="xinput"}}else null
+            if(retained!=null)retained else {
+                val imported=add("panel-input.exe")
+                val prefix=File(context.filesDir,"wine-vulkan-profile-id.txt").readText().trim()
+                imported.copy(name="Controller Panel QA",winePrefixId=prefix,graphics=org.frostbox.core.GraphicsBackend.DXVK,
+                    controllerMode="xinput",width=800,height=600,keyboardController=org.frostbox.core.KeyboardControllerProfile(mouseSpeed=1800f)).also {runBlocking {repository.save(it)}}
+            }
+        } else {
+            val id=File(context.filesDir,"library-karlson-profile-id.txt").readText().trim()
+            runBlocking {repository.profiles.first().single {it.id==id}}.also {check(it.name.contains("KARLSON") && it.graphics==org.frostbox.core.GraphicsBackend.DXVK)}
+        }
+        val id=profile.id
+        lateinit var model: org.frostbox.app.FrostModel
+        ui.activityRule.scenario.onActivity {model=androidx.lifecycle.ViewModelProvider(it)[org.frostbox.app.FrostModel::class.java]}
+        if(ui.onAllNodesWithTag("nav-Library").fetchSemanticsNodes().isNotEmpty())ui.onNodeWithTag("nav-Library").performClick();click("play-$id")
+        val dir=File(context.filesDir,if(fixture)"game-experience-controller" else "game-experience-physical").apply{mkdirs()}
+        File(dir,"ready.json").writeText(JSONObject().put("running",false).put("phase","starting").toString())
+        val rows=org.json.JSONArray();val start=android.os.SystemClock.elapsedRealtime()
+        try {
+            ui.waitUntil(120000){(model.launcher.guestWsi.value?.frames?.value ?: 0)>5 || model.launcher.activeId.value==null}
+            check(model.launcher.activeId.value==id){"Game failed before physical test"}
+            File(dir,"ready.json").writeText(JSONObject().put("running",true).put("profileId",id).put("controllerMode",profile.controllerMode).toString())
+            val seconds=(InstrumentationRegistry.getArguments().getString("frostbox.gameSeconds")?.toIntOrNull() ?: 180).coerceIn(30,300)
+            var lastPanel=false;var count=0
+            while(model.launcher.activeId.value==id && android.os.SystemClock.elapsedRealtime()-start<seconds*1000L) {
+                val blocked=model.controllers.gameInputBlocked
+                rows.put(JSONObject().put("elapsedMs",android.os.SystemClock.elapsedRealtime()-start).put("panelOpen",blocked)
+                    .put("physicalEvents",model.controllers.state.value.events).put("devices",model.controllers.state.value.devices.joinToString {it.name})
+                    .put("gpuFrames",model.launcher.guestWsi.value?.frames?.value ?: 0))
+                if(lastPanel!=blocked || count==0){UiDevice.getInstance(inst).takeScreenshot(File(dir,"transition-${count++}.png"));lastPanel=blocked}
+                // Physical interaction must not leave Compose's test frame clock frozen.
+                repeat(10){ui.mainClock.advanceTimeBy(100);ui.waitForIdle();Thread.sleep(100)}
+            }
+        } finally {
+            if(model.launcher.activeId.value==id)ui.runOnIdle {model.launcher.stop()}
+            ui.waitUntil(45000){model.launcher.activeId.value==null}
+            val r=repository.readRun(id) ?: JSONObject()
+            r.put("panelAndInputTimeline",rows).put("physicalGameplayNeedsHumanConfirmation",true)
+            File(dir,"result.json").writeText(r.toString(2))
+            File(dir,"ready.json").writeText(JSONObject().put("running",false).put("phase","finished").toString())
+        }
+        Assert.assertTrue(model.launcher.sessions.value[id].toString(),rows.length()>0)
     }
     @Test fun gamePanelPreservesGpuSessionAndLiveSettings() {
         Assume.assumeTrue("Build the debug game-panel fixture first",runCatching{context.assets.open("launcher/game-panel-x64.exe").close()}.isSuccess)

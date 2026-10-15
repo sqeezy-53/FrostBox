@@ -45,7 +45,7 @@ class AudioHub(prefixId: String,scope: CoroutineScope,private val factory: ()->P
      }
      played=sink.played.coerceAtMost(received);totalPlayed+=(played-previousPlayed).coerceAtLeast(0);previousPlayed=played;val padding=(received-played).coerceIn(0,capacity.toLong()).toInt()
      reply.write(AudioWire.reply(0,padding,received,played,capacity))
-     mutable.value=JSONObject().put("outputInitialized",true).put("outputKind",sink.kind).put("sampleRate",AudioWire.RATE).put("channels",2).put("format","PCM16").put("totalReceivedFrames",totalReceived).put("totalConsumedFrames",totalPlayed).put("receivedFrames",received).put("consumedFrames",played).put("capacityFrames",capacity).put("crc32",crc.value).put("starts",starts).put("stops",stops).put("gain",gain).put("cleanup",false).put("audibilityVerified",false).toString()
+     mutable.value=JSONObject().put("outputInitialized",true).put("outputKind",sink.kind).put("sampleRate",AudioWire.RATE).put("channels",2).put("format","PCM16").put("totalReceivedFrames",totalReceived).put("totalConsumedFrames",totalPlayed).put("receivedFrames",received).put("consumedFrames",played).put("capacityFrames",capacity).put("crc32",crc.value).put("starts",starts).put("stops",stops).put("gain",gain).put("outputGain",sink.appliedGain).put("cleanup",false).put("audibilityVerified",false).toString()
     }
    }catch(e: Exception){if(!closed.get())error=e.message ?: e.toString();runCatching {client.outputStream.write(AudioWire.reply(1,0,received,played,capacity))}}
    finally {

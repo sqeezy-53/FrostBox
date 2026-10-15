@@ -110,19 +110,24 @@ class FrostModel(app: Application): AndroidViewModel(app) {
             } finally { libraryBusy.value=false }
         }
     }
-    fun gameSettings(id: String,change: (GameProfile)->GameProfile) = action { repository.updateGameSettings(id,change) }
+    val gameSettingsFailure=MutableStateFlow("")
+    fun gameSettings(id: String,change: (GameProfile)->GameProfile) = action {
+        try {repository.updateGameSettings(id,change);gameSettingsFailure.value=""}
+        catch(e: CancellationException){throw e}
+        catch(e: Exception){gameSettingsFailure.value=e.message ?: e.toString();throw e}
+    }
     private var restartJob: Job?=null
     fun restartGame(id: String) {
         if(restartJob?.isActive==true)return
         restartJob=action {
-        check(launcher.activeId.value==id)
-        withContext(Dispatchers.Main.immediate){launcher.stop()}
-        withTimeout(45000){launcher.activeId.first {it==null}}
-        val current=repository.profiles.first().single {it.id==id}
-        withContext(Dispatchers.Main.immediate){play(current)}
+            check(launcher.activeId.value==id)
+            withContext(Dispatchers.Main.immediate){launcher.stop()}
+            withTimeout(45000){launcher.activeId.first {it==null}}
+            val current=repository.profiles.first().single {it.id==id}
+            withContext(Dispatchers.Main.immediate){play(current)}
         }
     }
-    fun play(p: GameProfile) { if(libraryBusy.value || busy.value) return; if(!wineProbeAvailable) { message.value="This build has no Wine package";return };controllers.useGameMapping(p.controllerMapping);launcher.play(p) }
+    fun play(p: GameProfile) { gameSettingsFailure.value="";if(libraryBusy.value || busy.value) return; if(!wineProbeAvailable) { message.value="This build has no Wine package";return };controllers.useGameMapping(p.controllerMapping);launcher.play(p) }
     fun exportRuntime(p: GameProfile,uri: Uri) = action {
         val result=launcher.sessions.value[p.id]?.result ?: repository.readRun(p.id)?.toString() ?: "{}"
         getApplication<Application>().contentResolver.openOutputStream(uri,"wt")?.bufferedWriter()?.use { it.write(result) } ?: error("Cannot export report")

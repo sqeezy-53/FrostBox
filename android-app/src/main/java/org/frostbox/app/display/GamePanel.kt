@@ -18,12 +18,14 @@ import org.frostbox.app.input.ControllerMonitor
 import org.frostbox.core.*
 
 @Composable internal fun GamePanel(profile: GameProfile?,phase: String,dimensions: String,
-    controllers: ControllerMonitor?,audio: String,diagnostics: String,frames: Long,isGpu: Boolean,
+    controllers: ControllerMonitor?,audio: String,diagnostics: String,settingsError: String,frames: Long,isGpu: Boolean,
     change: ((GameProfile)->GameProfile)->Unit,resume: ()->Unit,stop: ()->Unit,restart: ()->Unit,
     keyboard: ()->Unit,escape: ()->Unit,closeWindow: ()->Unit) {
     var tab by rememberSaveable {mutableStateOf("home")}
     var confirm by rememberSaveable {mutableStateOf("")}
     val focus=remember {FocusRequester()}
+    val scroll=rememberScrollState()
+    LaunchedEffect(tab){scroll.scrollTo(0)}
     Surface(Modifier.fillMaxHeight().widthIn(max=540.dp).fillMaxWidth().testTag("game-panel"),
         color=MaterialTheme.colorScheme.surface,shape=androidx.compose.foundation.shape.RoundedCornerShape(topStart=24.dp,bottomStart=24.dp),tonalElevation=6.dp) {
         Column(Modifier.padding(16.dp).safeDrawingPadding()) {
@@ -41,7 +43,8 @@ import org.frostbox.core.*
                     FilterChip(tab==id,{tab=id},label={Text(tr(label))},modifier=Modifier.testTag("panel-$id"))
                 }
             }
-            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+            if(settingsError.isNotEmpty())Text(settingsError.take(512),color=MaterialTheme.colorScheme.error)
+            Column(Modifier.weight(1f).verticalScroll(scroll),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                 when(tab) {
                     "home" -> {
                         Text(tr(R.string.gx_status,phase))

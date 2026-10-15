@@ -32,6 +32,8 @@ recoverable sessions and honest compatibility evidence.
 
 ## Key features
 
+- In-game Game Panel and host Fit/Fill/Stretch, qualified with a real D3D11 fixture; [scope and limitations](docs/GAME_EXPERIENCE.md).
+
 - Persistent Library and per-application profiles; explicit SAF import of EXEs and folders.
 - Real Play/Stop, stdout/stderr, exit codes and isolated `:runtime` execution.
 - Standard Wine prefixes, integrity checks, reuse and process-death recovery.

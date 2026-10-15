@@ -1,4 +1,4 @@
-# Game Experience checkpoint (work in progress)
+# Game Experience — device validation checkpoint
 
 The in-game panel is being qualified against Foundation. It does not replace Wine,
 Box64, DXVK, GDI, the audio driver, IPC or existing prefix/process management.
@@ -92,5 +92,65 @@ counters are not proof that a human heard playback.
 
 ## Validation
 
-Results, commands and remaining qualification gates will be recorded below after
-real POCO execution. Raw evidence is local/ignored and never uploaded unredacted.
+Software checks on POCO (2026-10-15):
+
+- Full Game Panel lifecycle fixture PASS:973 host Presents; Auto/Fit/Fill/Stretch;
+  four center and four off-center Win32 clicks; no panel-click leakage; Back;
+  landscape/reverse; Stop; persisted repeated Play and controlled Restart.
+- One Surface creation, zero destroys before Stop; same GuestWsiSession throughout
+  every panel/scale/orientation change. Destruction occurs during intentional Stop.
+- Twelve regression groups / fifteen methods PASS: native ARM64, Box64 interpreter /
+  dynarec / cancellation; WoW64 console5050/42+x64 control; Windows Vulkan10800/42;
+  Library Stop/recovery; x86 D3D9; x64 D3D11; GDI/Unicode; Raw Input relative motion;
+  IME/Back; actual x64+x86 WASAPI/AudioTrack9600-frame fixtures; native Surface lifecycle.
+- Separate actual AudioTrack test PASS: gain0/.4/1, mute/unmute, bounded silent PCM
+  drain, reset/restart, cleanup. This is Android output testing, not new listening
+  confirmation or a replacement for the separately executed Windows audio tests.
+- Host:31 core +16 Android-module JVM tests;2 CTest. Full APK/test APK and lint pass.
+- All98 previous asset/native APK entries match Foundation byte-for-byte.
+
+The first panel-test failures were harness defects (scrolling a non-scroll child,
+searching oversized virtualized QA cards and comparing pre/post-restart session
+identities). Their evidence is retained. The final lifecycle test passed.
+
+### Short overhead observation
+
+| Stage (2s each) | Completed host Presents | Rate/s | Main PSS KiB | Main FDs |
+|---|---:|---:|---:|---:|
+| Before panel |90|45.0|141717|247|
+| Panel open |121|60.5|150462|250|
+| Resumed after scaling |122|61.0|162148|255|
+
+These are short warmup-sensitive observations, not game FPS benchmarks or proof of
+zero overhead/leaks. PSS/FD increases are recorded, not hidden. No per-frame latency
+or GPU-copy/JNI-overhead claim is made. No new Device Lost in the fixture.
+
+### Real-game boundary
+
+Two preserved-profile KARLSON attempts produced zero host Presents in120s and were
+cancelled by the diagnostic test's `finally` cleanup. First attempt logged
+`VK_ERROR_DEVICE_LOST` in DXVK and FMOD initialization failure in Unity. The second
+stalled without an explicit Device Lost in its collected DXVK logs. The exact cause
+of the second startup stall remains unresolved; it is not declared a Game Panel fix
+or a proven panel regression. No game files, prefix, driver or launch arguments were
+changed to force a pass. Do not count a timed diagnostic stop as a proven game crash.
+Mafia II is not requalified by this checkpoint.
+
+### Physical controller qualification
+
+The user confirmed real 8BitDo movement/rotation/A in the interactive Windows D3D11
+fixture via the existing Wine XInput bridge. An initial manual panel attempt did
+not qualify: the test's sleep loop did not advance Compose's test frame clock;
+native rendering/input continued while Compose overlays and counters were frozen.
+This was a harness defect, not a successful panel-navigation test. The manual loop
+now advances the clock and pumps UI work. On the corrected repeat the user explicitly
+confirmed touch-handle opening, D-pad/A panel navigation, B to close, and resumed
+left/right-stick control of the Windows D3D11 cube. Physical Stop/repeated Play are
+being recorded separately. This is not KARLSON gameplay qualification.
+
+A keyboard/mouse + GPU attempt using the same fixture family stalled before its
+first Present; XInput mode rendered. This contrast is a diagnostic lead, not proof
+of the exact Wine/PnP root cause (the interactive PE was also extended between
+attempts). No production Wine/Box64/WSI changes were made for this experiment.
+
+Raw evidence stays local/ignored. Final artifact/PR details follow after validation.

@@ -26,6 +26,8 @@ open-source компонентов; проект не является форк�
 
 ## Возможности
 
+- Game Panel поверх работающего Surface, Fit/Fill/Stretch и настройки профиля; [проверки и ограничения](docs/GAME_EXPERIENCE.md).
+
 - Сохраняемая Library, профили игр и явный SAF-импорт EXE и каталогов.
 - Настоящие Play/Stop, stdout/stderr, exit code и отдельный процесс `:runtime`.
 - Штатные Wine prefixes, проверки целостности и восстановление после остановки.

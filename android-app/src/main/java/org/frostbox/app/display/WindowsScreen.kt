@@ -30,7 +30,7 @@ import org.frostbox.core.*
 
 @Composable fun WindowsScreen(session: DisplaySession,stop: ()->Unit,gpu: GuestWsiSession?=null,
     touch: TouchProfile?=null,controllers: ControllerMonitor?=null,profile: GameProfile?=null,
-    phase: String="Running",audio: String="{}",diagnostics: String="{}",change: ((GameProfile)->GameProfile)->Unit={},restart: ()->Unit={}) {
+    phase: String="Running",audio: String="{}",diagnostics: String="{}",settingsError: String="",change: ((GameProfile)->GameProfile)->Unit={},restart: ()->Unit={}) {
     val state by session.status.collectAsStateWithLifecycle()
     val gpuCount=if(gpu!=null){val f by gpu.frames.collectAsStateWithLifecycle();f.toLong()}else state.frames
     val activity=LocalActivity.current ?: return
@@ -84,7 +84,7 @@ import org.frostbox.core.*
             Surface(Modifier.align(alignment).safeDrawingPadding().padding(10.dp).testTag("game-hud"),color=Color(0xC0182025),shape=MaterialTheme.shapes.small) {
                 Column(Modifier.padding(8.dp)) {
                     Text(tr(if(gpu!=null)R.string.gx_hud_rate else R.string.gx_software_rate,rate?.let {"%.1f".format(it)} ?: "—"),style=MaterialTheme.typography.labelSmall)
-                    if(settings.hud=="detailed") {Text(tr(if(gpu!=null)R.string.gx_present_count else R.string.gx_software_count,count),style=MaterialTheme.typography.labelSmall);Text("${profile?.architecture} · ${profile?.width}×${profile?.height} · ${profile?.graphics}",style=MaterialTheme.typography.labelSmall)}
+                    if(settings.hud=="detailed") {Text(tr(if(gpu!=null)R.string.gx_present_count else R.string.gx_software_count,count),style=MaterialTheme.typography.labelSmall);Text("${profile?.architecture} · ${gpu?.width ?: state.width}×${gpu?.height ?: state.height} · ${profile?.graphics}",style=MaterialTheme.typography.labelSmall)}
                 }
             }
         }
@@ -98,7 +98,7 @@ import org.frostbox.core.*
         }
         if(panel) {
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha=.28f)).pointerInput(Unit){detectTapGestures {resumeGame()}})
-            Box(Modifier.align(Alignment.CenterEnd)) {GamePanel(profile,phase,dimensions,controllers,audio,diagnostics,gpuCount,gpu!=null,change,
+            Box(Modifier.align(Alignment.CenterEnd)) {GamePanel(profile,phase,dimensions,controllers,audio,diagnostics,settingsError,gpuCount,gpu!=null,change,
                 resume={resumeGame()},stop=stop,restart=restart,
                 keyboard={resumeGame();viewport?.display?.showKeyboard()},escape={resumeGame();session.key(27);session.key(27,true)},closeWindow={resumeGame();session.closeWindow()})}
         }

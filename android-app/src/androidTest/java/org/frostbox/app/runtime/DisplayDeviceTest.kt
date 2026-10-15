@@ -69,7 +69,9 @@ class DisplayDeviceTest {
     }
     private fun start(p: GameProfile,ready: String="FROSTBOX_GUI_READY") {
         // Library now virtualizes large catalogs; an off-screen card has no node yet.
-        ui.onNodeWithTag("catalog-scroll").performScrollToNode(hasTestTag("play-${p.id}"))
+        ui.onNodeWithTag("library-search").performTextReplacement(p.name)
+        val records=runBlocking {repo.profiles.first()}.filter {it.name.contains(p.name,true)}.sortedByDescending {it.lastLaunch ?: 0}
+        ui.onNodeWithTag("catalog-scroll").performScrollToIndex(records.indexOfFirst {it.id==p.id})
         ui.onNodeWithTag("play-${p.id}").performScrollTo().performClick()
         try {
             ui.waitUntil(180000) { (model.display.status.value.frames>0 && model.launcher.sessions.value[p.id]?.result?.contains(ready)==true) || model.launcher.sessions.value[p.id]?.phase in listOf(LibraryLauncher.Phase.Failed,LibraryLauncher.Phase.Finished) }

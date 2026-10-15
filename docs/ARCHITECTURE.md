@@ -28,3 +28,11 @@ existing launcher/runtime IPC and native process registry.
 
 [Historical implementation notes](history/ARCHITECTURE-pre-foundation.md) describe
 successive experiments; the current model above takes precedence.
+
+## In-game UI boundary
+
+[Game Experience](GAME_EXPERIENCE.md) retains the same AndroidView/SurfaceView while
+a Compose sibling panel opens. Host layout/cropping and its inverse coordinate
+transform are independent of the fixed GPU output buffer. A neutral controller gate
+protects Wine from panel navigation; Resume restores input focus. Atomic DataStore
+record updates do not acquire the active game's content lock or change prefix identity.
