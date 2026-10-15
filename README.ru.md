@@ -40,9 +40,13 @@ open-source компонентов; проект не является форк�
 
 <p align="center"><img src="docs/assets/storage-device.png" alt="Реальный экран Storage на POCO после объединения runtime" width="320" /></p>
 
-Реальный Android UI с устройства проверки, только общие показатели хранилища.
-Баннер использует собственный векторный знак приложения. Игровые сцены,
-приватные записи библиотеки и необработанные журналы не публикуются.
+<p align="center"><img src="docs/assets/game-panel-device.png" alt="Game Panel поверх собственного Windows D3D11-теста на POCO" width="640" /></p>
+<p align="center"><img src="docs/assets/game-display-fit-device.png" alt="Живые настройки Fit и размеры буфера вывода" width="480" /> <img src="docs/assets/game-hud-device.png" alt="Собственный D3D11-куб и HUD завершений host Present" width="480" /></p>
+
+Реальный Android UI на POCO. Куб — наша собственная Windows D3D11-программа.
+HUD измеряет завершения host Present, а не игровой FPS. Приватные записи Library,
+сцены коммерческих игр и необработанные журналы не публикуются.
+[Проверки Game Panel и ограничения](docs/GAME_EXPERIENCE.md).
 
 ## Архитектура и исполнение
 

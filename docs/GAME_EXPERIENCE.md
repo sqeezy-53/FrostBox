@@ -1,6 +1,6 @@
 # Game Experience — device validation checkpoint
 
-The in-game panel is being qualified against Foundation. It does not replace Wine,
+This partial UI checkpoint is qualified against Foundation. It does not replace Wine,
 Box64, DXVK, GDI, the audio driver, IPC or existing prefix/process management.
 
 ## Architecture
@@ -87,14 +87,17 @@ No PixelCopy, logs scan, native renderer changes or new high-rate polling is use
 
 Gain applies only to the actual AndroidPcmOutput AudioTrack, on the existing audio
 worker. A reset recreates the track and the next protocol packet reapplies gain.
-No microphone, new endpoint or system audio setting is used. Software consumption
+The gain report is sampled before closure (`cleanup:false`); the test then closes
+the socket/hub and awaits the worker, while the separate Windows WASAPI tests
+assert the terminal cleanup report. No microphone, new endpoint or system audio
+setting is used. Software consumption
 counters are not proof that a human heard playback.
 
 ## Validation
 
 Software checks on POCO (2026-10-15):
 
-- Full Game Panel lifecycle fixture PASS:973 host Presents; Auto/Fit/Fill/Stretch;
+- Full Game Panel lifecycle fixture PASS:973 host Presents initially,975 on the final build; Auto/Fit/Fill/Stretch;
   four center and four off-center Win32 clicks; no panel-click leakage; Back;
   landscape/reverse; Stop; persisted repeated Play and controlled Restart.
 - One Surface creation, zero destroys before Stop; same GuestWsiSession throughout
@@ -111,17 +114,20 @@ Software checks on POCO (2026-10-15):
 
 The first panel-test failures were harness defects (scrolling a non-scroll child,
 searching oversized virtualized QA cards and comparing pre/post-restart session
-identities). Their evidence is retained. The final lifecycle test passed.
+identities). Their evidence is retained. The final lifecycle + AudioTrack invocation passed2/2 in31.042s. A final harness
+retry waited for the Library composition after the profile update; an incorrect audio
+class selector in the preceding command was corrected. Neither failed command is
+counted as a successful check.
 
 ### Short overhead observation
 
 | Stage (2s each) | Completed host Presents | Rate/s | Main PSS KiB | Main FDs |
 |---|---:|---:|---:|---:|
-| Before panel |90|45.0|141717|247|
-| Panel open |121|60.5|150462|250|
-| Resumed after scaling |122|61.0|162148|255|
+| Before panel |91|45.5|146632|249|
+| Panel open |121|60.5|154240|252|
+| Resumed after scaling |121|60.5|154527|256|
 
-These are short warmup-sensitive observations, not game FPS benchmarks or proof of
+These final-build samples are short warmup-sensitive observations, not game FPS benchmarks or proof of
 zero overhead/leaks. PSS/FD increases are recorded, not hidden. No per-frame latency
 or GPU-copy/JNI-overhead claim is made. No new Device Lost in the fixture.
 
@@ -145,12 +151,92 @@ native rendering/input continued while Compose overlays and counters were frozen
 This was a harness defect, not a successful panel-navigation test. The manual loop
 now advances the clock and pumps UI work. On the corrected repeat the user explicitly
 confirmed touch-handle opening, D-pad/A panel navigation, B to close, and resumed
-left/right-stick control of the Windows D3D11 cube. Physical Stop/repeated Play are
-being recorded separately. This is not KARLSON gameplay qualification.
+left/right-stick control of the Windows D3D11 cube. The user also confirmed Stop via the panel. That run recorded14,889 host Presents,
+316 Android events and154 Windows XInput state changes, with valid prefix cleanup.
+Repeated Library Play reused the exact same QA profile/prefix:3,217 host Presents,
+516 Android events and323 Windows XInput state changes, empty GPU error, valid
+prefix, and intentional cancellation/signal15 on user Stop. The user explicitly
+confirmed stick control, panel opening/B close and Stop again. This is real physical
+input qualification for our Windows fixture, not KARLSON gameplay qualification.
+
+The first retained-profile repeat falsely treated the pre-dispatch idle state as
+completion and read the preceding terminal report. The harness now waits for this
+Play's active ID/new run ID and preserves prior evidence on a failure to start.
 
 A keyboard/mouse + GPU attempt using the same fixture family stalled before its
 first Present; XInput mode rendered. This contrast is a diagnostic lead, not proof
 of the exact Wine/PnP root cause (the interactive PE was also extended between
 attempts). No production Wine/Box64/WSI changes were made for this experiment.
 
-Raw evidence stays local/ignored. Final artifact/PR details follow after validation.
+## Scope and remaining work
+
+| Component | Before | This checkpoint |
+|---|---|---|
+| In-game settings | Return to Library | Panel over the same GPU Surface |
+| Host scaling | Stretched host view | Persisted Auto/Fit/Fill/Stretch, exact touch checks |
+| Live profile edits | Game-content lock | Atomic record-only edits; same DataStore |
+| Controller during panel | Unqualified routing | Physical8BitDo navigation and resumed Windows XInput |
+| Process controls | Library actions | Confirmed Stop/Restart; repeated Library Play |
+| Audio controls | Backend output only | Real AudioTrack per-session gain/mute; silent drain test |
+| Performance display | No in-game HUD | Labelled sampled host-Present rate; no invented frame timing |
+| KARLSON | Historical Tutorial worked | Current startup not requalified; two failed attempts retained |
+| General recovery | Existing process/prefix recovery | Preserved; arbitrary destroyed GPU Surface still needs Play |
+
+No universal Pause, opening chord, integer/forced-aspect mode, live guest backbuffer
+resize, VSync control, limiter or 1%low is advertised. Game files and Wine prefixes
+were preserved. Original qualified Wine/Box64/DXVK/native assets were not rebuilt.
+
+## Reproducing the targeted checks
+
+Use the qualified full runtime build described in [Linux build](BUILDING.md),
+including the existing feature flags. Before building the debug test APK, compile
+only the two new original PE fixtures against the existing Wine work tree:
+
+```sh
+python3 scripts/build-game-panel-fixture.py --wine-work ../../work/wine-wsi
+python3 scripts/build-game-panel-fixture.py --wine-work ../../work/wine-wsi --input
+```
+
+Install both APKs with `adb install -r -t` (no uninstall/data clear), then:
+
+```sh
+adb shell am instrument -w -r \
+  -e class org.frostbox.app.runtime.LibraryDeviceTest#gamePanelPreservesGpuSessionAndLiveSettings \
+  org.frostbox.app.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument -w -r \
+  -e class org.frostbox.app.library.RemoteInputAudioDeviceTest#audioGainMuteAndResetOnAndroidOutput \
+  org.frostbox.app.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+The physical fixture requires an already initialized diagnostic prefix and a person:
+
+```sh
+adb shell am instrument -w -r -e frostbox.gameQa true -e frostbox.gameSeconds 180 \
+  -e class org.frostbox.app.runtime.LibraryDeviceTest#gamePanelControllerPhysicalFixture \
+  org.frostbox.app.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Only after a completed run, add `-e reuseQaFixtures true` to repeat the recorded owned
+QA profile (name/hash/input-mode checked). It does not select arbitrary game files.
+Move both sticks/A, open the touch handle, navigate D-pad/A, close B, resume control,
+and Stop using the confirmation dialog. The test pumps Compose's frame clock and
+records timeline/screen transitions. It does not generate physical controller input.
+Automation uses only app-local View events/Back dispatcher, never Android-wide input
+injection. Check instrumentation `OK` and individual status codes; adb's exit code
+alone does not establish a test pass.
+
+## Artifacts and review
+
+Source branch: `feature/ingame-experience`; [Pull Request10](https://github.com/sqeezy-53/FrostBox/pull/10)
+targets `develop`. Version:`0.7.1-alpha-game-experience.1`/code20. This is a partial UI
+milestone, not a complete0.7.1 game-compatibility release.
+
+Final local checkpoint is a sibling of the source checkout:
+`../game-experience-checkpoint/`. It contains the full debug APK, test APK, a Git
+source snapshot, selected private evidence, exact commands, validation metadata and
+SHA256 sums. Raw device logs/profile identifiers remain local and ignored. The source
+snapshot is not the complete LGPL third-party corresponding-source bundle.
+
+The full APK is **local only**: Foundation's existing embedded-build-path privacy
+finding is still open. No binary GitHub Release or rollback/downgrade qualification
+is claimed. Source-tier GitHub CI builds its separately labelled shell APK.

@@ -227,13 +227,23 @@ class LibraryDeviceTest {
         val id=profile.id
         lateinit var model: org.frostbox.app.FrostModel
         ui.activityRule.scenario.onActivity {model=androidx.lifecycle.ViewModelProvider(it)[org.frostbox.app.FrostModel::class.java]}
-        if(ui.onAllNodesWithTag("nav-Library").fetchSemanticsNodes().isNotEmpty())ui.onNodeWithTag("nav-Library").performClick();click("play-$id")
+        val previousRun=repository.readRun(id)?.optString("runId")
+        if(ui.onAllNodesWithTag("nav-Library").fetchSemanticsNodes().isNotEmpty())ui.onNodeWithTag("nav-Library").performClick()
+        click("play-$id")
         val dir=File(context.filesDir,if(fixture)"game-experience-controller" else "game-experience-physical").apply{mkdirs()}
         File(dir,"ready.json").writeText(JSONObject().put("running",false).put("phase","starting").toString())
         val rows=org.json.JSONArray();val start=android.os.SystemClock.elapsedRealtime()
+        var launched=false
         try {
+            // A restored profile already has a terminal report. Do not interpret the
+            // pre-dispatch idle state or that old report as this Play's completion.
+            ui.waitUntil(20000){
+                val current=repository.readRun(id)
+                launched=model.launcher.activeId.value==id || (current?.optString("runId")!=previousRun && current?.has("runId")==true)
+                launched
+            }
             ui.waitUntil(120000){(model.launcher.guestWsi.value?.frames?.value ?: 0)>5 || model.launcher.activeId.value==null}
-            check(model.launcher.activeId.value==id){"Game failed before physical test"}
+            check(model.launcher.activeId.value==id){"Game failed before physical test: ${model.launcher.sessions.value[id]}"}
             File(dir,"ready.json").writeText(JSONObject().put("running",true).put("profileId",id).put("controllerMode",profile.controllerMode).toString())
             val seconds=(InstrumentationRegistry.getArguments().getString("frostbox.gameSeconds")?.toIntOrNull() ?: 180).coerceIn(30,300)
             var lastPanel=false;var count=0
@@ -251,7 +261,8 @@ class LibraryDeviceTest {
             ui.waitUntil(45000){model.launcher.activeId.value==null}
             val r=repository.readRun(id) ?: JSONObject()
             r.put("panelAndInputTimeline",rows).put("physicalGameplayNeedsHumanConfirmation",true)
-            File(dir,"result.json").writeText(r.toString(2))
+            if(launched)File(dir,"result.json").writeText(r.toString(2))
+            else File(dir,"start-failure.json").writeText(JSONObject().put("profileId",id).put("message",model.message.value).put("session",model.launcher.sessions.value[id].toString()).toString(2))
             File(dir,"ready.json").writeText(JSONObject().put("running",false).put("phase","finished").toString())
         }
         Assert.assertTrue(model.launcher.sessions.value[id].toString(),rows.length()>0)
@@ -267,7 +278,7 @@ class LibraryDeviceTest {
         lateinit var model: org.frostbox.app.FrostModel
         ui.activityRule.scenario.onActivity {model=androidx.lifecycle.ViewModelProvider(it)[org.frostbox.app.FrostModel::class.java]}
         ui.waitUntil(10000){model.profiles.value.any {it.id==p.id && it.name==p.name}}
-        ui.onNodeWithTag("library-search").performTextReplacement(p.name)
+        ui.waitUntil(10000){ui.onAllNodesWithTag("catalog-scroll").fetchSemanticsNodes().isNotEmpty()}
         click("play-${p.id}")
         ui.waitUntil(90000){(model.launcher.guestWsi.value?.frames?.value ?: 0)>=10}
         val gpu=model.launcher.guestWsi.value!!

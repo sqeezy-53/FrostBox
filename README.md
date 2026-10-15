@@ -46,9 +46,13 @@ recoverable sessions and honest compatibility evidence.
 
 <p align="center"><img src="docs/assets/storage-device.png" alt="Real FrostBox Storage screen on POCO after runtime sharing" width="320" /></p>
 
-Real Android UI captured on the validation device; only aggregate storage counts
-are shown. The banner uses original vector app branding. Game scenes, private
-Library entries and raw device logs are excluded.
+<p align="center"><img src="docs/assets/game-panel-device.png" alt="In-game panel over the original Windows D3D11 QA fixture on POCO" width="640" /></p>
+<p align="center"><img src="docs/assets/game-display-fit-device.png" alt="Live host Fit settings and explicit output-buffer dimensions" width="480" /> <img src="docs/assets/game-hud-device.png" alt="Original D3D11 cube and sampled host-Present HUD" width="480" /></p>
+
+Real Android UI captured on POCO. The cube is our original Windows D3D11 test
+fixture. The HUD measures host Present completions, not game FPS. Private Library
+entries, commercial game scenes and raw device logs are excluded.
+[Game Panel validation and limitations](docs/GAME_EXPERIENCE.md).
 
 ## Architecture & how it works
 
