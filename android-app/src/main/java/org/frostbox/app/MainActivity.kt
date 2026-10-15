@@ -11,7 +11,7 @@ class MainActivity: ComponentActivity() {
     private val model: FrostModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.callback = ControllerWindowCallback(window.callback, model.controllers, {model.launcher.activeId.value!=null}, {onBackPressedDispatcher.onBackPressed()})
+        window.callback = ControllerWindowCallback(window.callback, model.controllers, {model.launcher.activeId.value!=null && !model.controllers.gameInputBlocked}, {onBackPressedDispatcher.onBackPressed()})
         setContent { FrostApp(model) }
     }
     override fun onStart() { super.onStart(); model.startMonitoring(); model.gpu.foreground(true) }

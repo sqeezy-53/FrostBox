@@ -10,17 +10,28 @@ import android.view.inputmethod.*
 
 /** Ordinary app input. IME commits UTF-16; preedit stays local until commit/finish. */
 class WindowsSurface(context: Context,private val session: DisplaySession,private val gpu: GuestWsiSession? = null): SurfaceView(context),SurfaceHolder.Callback {
+    var surfaceCreates=0;private set
+    var surfaceDestroys=0;private set
+    private var gameInput=true
+    private var restoreCapture=false
+    fun gameInput(enabled: Boolean) {
+        if(gameInput==enabled)return
+        gameInput=enabled
+        if(!enabled){restoreCapture=hasPointerCapture();if(restoreCapture)releasePointerCapture();releaseInput();session.focus(false);clearFocus()}
+        else {requestFocus();session.focus(hasWindowFocus());if(restoreCapture)requestPointerCapture();restoreCapture=false}
+    }
     private val pressed=mutableSetOf<Int>()
     private var pointerId=-1;private var pointerX=0f;private var pointerY=0f
     private var pointerRelease=0
     private var composition=""
     init { holder.setFormat(PixelFormat.RGBA_8888);gpu?.let { holder.setFixedSize(it.width,it.height) };holder.addCallback(this);isFocusableInTouchMode=true;isFocusable=true;contentDescription="Windows display";tag="windows-surface" }
-    override fun surfaceCreated(holder: SurfaceHolder) { if(gpu!=null)gpu.attach(holder.surface) else session.attach(holder.surface,width,height);requestFocus();session.focus(hasWindowFocus()) }
+    override fun surfaceCreated(holder: SurfaceHolder) { surfaceCreates++; if(gpu!=null)gpu.attach(holder.surface) else session.attach(holder.surface,width,height);if(gameInput)requestFocus();session.focus(hasWindowFocus() && gameInput) }
     override fun surfaceChanged(holder: SurfaceHolder,format: Int,width: Int,height: Int) { if(gpu!=null)gpu.attach(holder.surface) else session.attach(holder.surface,width,height) }
     override fun onSizeChanged(w: Int,h: Int,oldw: Int,oldh: Int) { super.onSizeChanged(w,h,oldw,oldh);if(gpu!=null)session.inputViewport(w,h) }
-    override fun surfaceDestroyed(holder: SurfaceHolder) { releaseInput();if(gpu!=null)gpu.lostSurface() else session.attach(null) }
-    override fun onWindowFocusChanged(hasWindowFocus: Boolean) { super.onWindowFocusChanged(hasWindowFocus);if(!hasWindowFocus) { composition="";releaseInput() };session.focus(hasWindowFocus) }
+    override fun surfaceDestroyed(holder: SurfaceHolder) { surfaceDestroys++; releaseInput();if(gpu!=null)gpu.lostSurface() else session.attach(null) }
+    override fun onWindowFocusChanged(hasWindowFocus: Boolean) { super.onWindowFocusChanged(hasWindowFocus);if(!hasWindowFocus) { composition="";releaseInput() };session.focus(hasWindowFocus && gameInput) }
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if(!gameInput)return false
         requestFocus()
         when(event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
@@ -51,6 +62,7 @@ class WindowsSurface(context: Context,private val session: DisplaySession,privat
     override fun onDetachedFromWindow() { composition="";releaseInput();super.onDetachedFromWindow() }
     override fun performClick(): Boolean { super.performClick();return true }
     override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+        if(!gameInput)return false
         if(event.actionMasked==MotionEvent.ACTION_HOVER_MOVE) { session.pointer(event.x,event.y,0);return true }
         return super.onGenericMotionEvent(event)
     }
@@ -97,6 +109,6 @@ class WindowsSurface(context: Context,private val session: DisplaySession,privat
         KeyEvent.KEYCODE_ALT_LEFT,KeyEvent.KEYCODE_ALT_RIGHT -> 18
         else -> null
     }
-    override fun onKeyDown(keyCode: Int,event: KeyEvent): Boolean { virtualKey(keyCode)?.let { pressed.add(it);session.key(it);return true };return super.onKeyDown(keyCode,event) }
-    override fun onKeyUp(keyCode: Int,event: KeyEvent): Boolean { virtualKey(keyCode)?.let { pressed.remove(it);session.key(it,true);return true };return super.onKeyUp(keyCode,event) }
+    override fun onKeyDown(keyCode: Int,event: KeyEvent): Boolean { if(!gameInput)return false; virtualKey(keyCode)?.let { pressed.add(it);session.key(it);return true };return super.onKeyDown(keyCode,event) }
+    override fun onKeyUp(keyCode: Int,event: KeyEvent): Boolean { if(!gameInput)return false; virtualKey(keyCode)?.let { pressed.remove(it);session.key(it,true);return true };return super.onKeyUp(keyCode,event) }
 }

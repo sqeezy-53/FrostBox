@@ -8,8 +8,16 @@ __declspec(dllimport) int printf(const char*,...);
 __declspec(dllimport) int fflush(void*);
 #include <string.h>
 int _fltused=0;
+#ifndef FROSTBOX_CUBE_FRAMES
+#define FROSTBOX_CUBE_FRAMES 120
+#endif
 static int quit;
-static LRESULT CALLBACK proc(HWND w,UINT message,WPARAM a,LPARAM b){if(message==WM_CLOSE){DestroyWindow(w);return 0;}if(message==WM_DESTROY){quit=1;PostQuitMessage(0);return 0;}return DefWindowProcW(w,message,a,b);}
+static LRESULT CALLBACK proc(HWND w,UINT message,WPARAM a,LPARAM b){
+#ifdef FROSTBOX_PANEL_PROBE
+    if(message==WM_LBUTTONDOWN) {printf("PANEL_CLICK=%d,%d\n",(short)LOWORD(b),(short)HIWORD(b));fflush(NULL);}
+    if(message==WM_KEYDOWN || message==WM_KEYUP){printf("PANEL_KEY=%u,%u\n",(unsigned)a,(unsigned)message);fflush(NULL);}
+#endif
+if(message==WM_CLOSE){DestroyWindow(w);return 0;}if(message==WM_DESTROY){quit=1;PostQuitMessage(0);return 0;}return DefWindowProcW(w,message,a,b);}
 static const GUID texture_iid={0x6f15aaf2,0xd208,0x4e89,{0x9a,0xb4,0x48,0x95,0x35,0xd3,0x4f,0x9c}};
 static const char shader[]=
 "cbuffer Frame:register(b0){float time;float aspect;float2 pad;}"
@@ -34,7 +42,11 @@ void mainCRTStartup(void){
     printf("FROSTBOX_D3D11_CUBE BEGIN\n");
     WNDCLASSEXW cls={0};cls.cbSize=sizeof(cls);cls.lpfnWndProc=proc;cls.hInstance=GetModuleHandleW(NULL);cls.lpszClassName=L"FrostD3D11Cube";
     if(!RegisterClassExW(&cls)){printf("REGISTER_FAILED=%lu\n",GetLastError());ExitProcess(11);}
+#ifdef FROSTBOX_PANEL_PROBE
+    HWND window=CreateWindowExW(0,cls.lpszClassName,cls.lpszClassName,WS_POPUP,0,0,800,600,NULL,NULL,cls.hInstance,NULL);if(!window)ExitProcess(11);ShowWindow(window,SW_SHOW);
+#else
     HWND window=CreateWindowExW(0,cls.lpszClassName,cls.lpszClassName,WS_OVERLAPPEDWINDOW,0,0,400,300,NULL,NULL,cls.hInstance,NULL);if(!window)ExitProcess(11);ShowWindow(window,SW_SHOW);
+#endif
     RECT area={0};if(!GetClientRect(window,&area))goto done;UINT width=area.right,height=area.bottom;if(!width||!height||width>4096||height>4096){printf("BAD_CLIENT=%ux%u\n",width,height);goto done;}
     DXGI_SWAP_CHAIN_DESC desc={0};desc.BufferDesc.Width=width;desc.BufferDesc.Height=height;desc.BufferDesc.Format=DXGI_FORMAT_R8G8B8A8_UNORM;desc.SampleDesc.Count=1;desc.BufferUsage=DXGI_USAGE_RENDER_TARGET_OUTPUT;desc.BufferCount=2;desc.OutputWindow=window;desc.Windowed=TRUE;desc.SwapEffect=DXGI_SWAP_EFFECT_DISCARD;
     D3D_FEATURE_LEVEL wanted=D3D_FEATURE_LEVEL_11_0,actual=0;
@@ -52,13 +64,13 @@ void mainCRTStartup(void){
     D3D11_RASTERIZER_DESC rd={0};rd.FillMode=D3D11_FILL_SOLID;rd.CullMode=D3D11_CULL_NONE;rd.DepthClipEnable=TRUE;HR(ID3D11Device_CreateRasterizerState(device,&rd,&raster));ID3D11DeviceContext_RSSetState(context,raster);
     ID3D11DeviceContext_OMSetRenderTargets(context,1,&rtv,dsv);D3D11_VIEWPORT viewport={0,0,(float)width,(float)height,0,1};ID3D11DeviceContext_RSSetViewports(context,1,&viewport);
     UINT stride=24,offset=0;ID3D11DeviceContext_IASetVertexBuffers(context,0,1,&vb,&stride,&offset);ID3D11DeviceContext_IASetInputLayout(context,layout);ID3D11DeviceContext_IASetPrimitiveTopology(context,D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);ID3D11DeviceContext_VSSetShader(context,vs,NULL,0);ID3D11DeviceContext_PSSetShader(context,ps,NULL,0);ID3D11DeviceContext_VSSetConstantBuffers(context,0,1,&cb);
-    for(frames=0;frames<120&&!quit;frames++){
+    for(frames=0;frames<FROSTBOX_CUBE_FRAMES&&!quit;frames++){
         MSG msg;while(PeekMessageW(&msg,NULL,0,0,PM_REMOVE)){TranslateMessage(&msg);DispatchMessageW(&msg);}if(quit)break;
         float frame[]={frames*0.04f,(float)width/height,0,0};ID3D11DeviceContext_UpdateSubresource(context,(ID3D11Resource*)cb,0,NULL,frame,0,0);
         const float clear[]={0.02f,0.025f,0.06f,1};ID3D11DeviceContext_ClearRenderTargetView(context,rtv,clear);ID3D11DeviceContext_ClearDepthStencilView(context,dsv,D3D11_CLEAR_DEPTH,1,0);
         ID3D11DeviceContext_Draw(context,36,0);HR(IDXGISwapChain_Present(swap,1,0));printf("FROSTBOX_D3D11_DRAW_PRESENT FRAME=%u\n",frames+1);fflush(NULL);Sleep(15);
     }
-    if(frames==120)result=42;
+    if(frames==FROSTBOX_CUBE_FRAMES)result=42;
 done:
     if(errors)printf("HLSL_ERROR=%s\n",(char*)ID3D10Blob_GetBufferPointer(errors));
     if(context){ID3D11DeviceContext_ClearState(context);ID3D11DeviceContext_Flush(context);}

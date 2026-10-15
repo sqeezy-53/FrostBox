@@ -8,6 +8,7 @@ interface PcmOutput: AutoCloseable {
  val kind: String get()="test-output"
  val capacity: Int
  val played: Long
+ fun gain(value: Float) {}
  fun start()
  fun pause()
  fun reset()
@@ -37,6 +38,7 @@ class AndroidPcmOutput(context: Context): PcmOutput {
   .setBufferSizeInBytes(bytes).setTransferMode(AudioTrack.MODE_STREAM).build().also {if(it.state!=AudioTrack.STATE_INITIALIZED){it.release();error("Android output did not initialize")}}
  private fun active(): AudioTrack {check(!focusLost){"Android audio focus lost"};return checkNotNull(track){"Output released"}}
  override val played: Long get(){val raw=active().playbackHeadPosition.toLong() and 0xffffffffL;if(raw<previous)wraps+=1L shl 32;previous=raw;return wraps+raw}
+ override fun gain(value: Float){require(value.isFinite() && value in 0f..1f);check(active().setVolume(value)==AudioTrack.SUCCESS)}
  override fun start(){active().play()}
  override fun pause(){active().pause()}
  override fun reset(){active().stop();track?.release();track=create();previous=0;wraps=0}

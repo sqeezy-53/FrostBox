@@ -24,7 +24,16 @@ class ControllerMonitor(private val context: Context,private val scope: Coroutin
     private val mutable=MutableStateFlow(ControllerState());val state=mutable.asStateFlow()
     private val touchState=MutableStateFlow<GamepadSnapshot?>(null)
     fun touch(value: GamepadSnapshot?){touchState.value=value}
-    fun runtimePads()=touchState.value?.let {listOf(it)} ?: state.value.pads
+    @Volatile var gameInputBlocked=false
+        private set
+    fun blockGameInput(blocked: Boolean) {
+        if(blocked==gameInputBlocked)return
+        gameInputBlocked=blocked;reset(if(blocked) "Game Panel opened" else "Game Panel resumed")
+    }
+    fun runtimePads(): List<GamepadSnapshot> {
+        val pads=touchState.value?.let {listOf(it)} ?: state.value.pads
+        return if(gameInputBlocked) pads.map {GamepadSnapshot(it.slot,it.descriptor,it.connected,it.packet+1)} else pads
+    }
     var testing=false
     private var active=false
     private var saved=emptyMap<String,ControllerMapping>()

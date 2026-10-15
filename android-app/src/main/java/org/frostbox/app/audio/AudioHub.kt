@@ -19,6 +19,8 @@ class AudioHub(prefixId: String,scope: CoroutineScope,private val factory: ()->P
  @Volatile private var peer: LocalSocket?=null
  private val mutable=MutableStateFlow(JSONObject().put("deviceTested",false).put("audibilityVerified",false).toString())
  val report=mutable.asStateFlow()
+ @Volatile private var gain=1f
+ fun setGain(value: Float){require(value.isFinite() && value in 0f..1f);gain=value}
  private val job: Job
  init {
   require(UUID.fromString(prefixId).toString()==prefixId);server=LocalServerSocket("frost-audio-${Process.myUid()}-$prefixId")
@@ -32,7 +34,7 @@ class AudioHub(prefixId: String,scope: CoroutineScope,private val factory: ()->P
      // EOF at a packet boundary is normal stream release, not a transport failure.
      val first=input.read();if(first<0)break;header[0]=first.toByte();input.readFully(header,1,15);val h=AudioWire.header(header)
      if(output==null){check(h.operation==1){"HELLO required"};output=factory();capacity=output.capacity;require(capacity in 1..AudioWire.MAX_FRAMES)}
-     val sink=checkNotNull(output)
+     val sink=checkNotNull(output);sink.gain(gain)
      when(h.operation){
       1->Unit
       2->{sink.start();starts++}
@@ -43,7 +45,7 @@ class AudioHub(prefixId: String,scope: CoroutineScope,private val factory: ()->P
      }
      played=sink.played.coerceAtMost(received);totalPlayed+=(played-previousPlayed).coerceAtLeast(0);previousPlayed=played;val padding=(received-played).coerceIn(0,capacity.toLong()).toInt()
      reply.write(AudioWire.reply(0,padding,received,played,capacity))
-     mutable.value=JSONObject().put("outputInitialized",true).put("outputKind",sink.kind).put("sampleRate",AudioWire.RATE).put("channels",2).put("format","PCM16").put("totalReceivedFrames",totalReceived).put("totalConsumedFrames",totalPlayed).put("receivedFrames",received).put("consumedFrames",played).put("capacityFrames",capacity).put("crc32",crc.value).put("starts",starts).put("stops",stops).put("cleanup",false).put("audibilityVerified",false).toString()
+     mutable.value=JSONObject().put("outputInitialized",true).put("outputKind",sink.kind).put("sampleRate",AudioWire.RATE).put("channels",2).put("format","PCM16").put("totalReceivedFrames",totalReceived).put("totalConsumedFrames",totalPlayed).put("receivedFrames",received).put("consumedFrames",played).put("capacityFrames",capacity).put("crc32",crc.value).put("starts",starts).put("stops",stops).put("gain",gain).put("cleanup",false).put("audibilityVerified",false).toString()
     }
    }catch(e: Exception){if(!closed.get())error=e.message ?: e.toString();runCatching {client.outputStream.write(AudioWire.reply(1,0,received,played,capacity))}}
    finally {

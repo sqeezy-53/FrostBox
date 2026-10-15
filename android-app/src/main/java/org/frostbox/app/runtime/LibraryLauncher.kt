@@ -16,6 +16,9 @@ class LibraryLauncher(private val context: Context,private val repository: Profi
     val sessions=mutable.asStateFlow()
     val guestWsi=MutableStateFlow<org.frostbox.app.display.GuestWsiSession?>(null)
     val activeId=MutableStateFlow<String?>(null)
+    val audioState=MutableStateFlow("{}")
+    private var liveProfile: GameProfile?=null
+    private var audioStateJob: Job?=null
     private var audioHub: org.frostbox.app.audio.AudioHub?=null
     private var audioReport: JSONObject?=null
     private var controllerInputReport: JSONObject?=null
@@ -28,6 +31,13 @@ class LibraryLauncher(private val context: Context,private val repository: Profi
     init {
         scope.launch(Dispatchers.IO) {
             repository.profiles.collect { profiles ->
+                profiles.firstOrNull {it.id==activeId.value}?.let {p ->
+                    val previous=liveProfile
+                    if(previous?.controllerMapping!=p.controllerMapping) withContext(Dispatchers.Main.immediate){controllers?.useGameMapping(p.controllerMapping)}
+                    keyboardBridge?.update(p.keyboardController)
+                    audioHub?.setGain(if(p.experience.muted)0f else p.experience.audioGain)
+                    liveProfile=p
+                }
                 profiles.forEach { p ->
                     if(p.id !in mutable.value) {
                         val saved=runCatching { repository.readRun(p.id) }.getOrNull()
@@ -55,15 +65,7 @@ class LibraryLauncher(private val context: Context,private val repository: Profi
                 if(stopping && status.active) phase=Phase.Stopping
                 if(operation=="launch" && result.optString("phase")=="launch" && result.optBoolean("running") && !started) {
                     started=true
-                    if(display.status.value.active && guestWsi.value==null) {
-                        val expected=runId
-                        scope.launch {
-                            delay(15000)
-                            if(runId==expected && activeId.value==id && display.status.value.active && display.status.value.frames==0L) {
-                                display.timedOut();stop()
-                            }
-                        }
-                    }
+                    // No frame-timeout kills: a slow loader is not proof of a crash.
                     runCatching { withContext(Dispatchers.IO) { repository.markStarted(id,System.currentTimeMillis());repository.writeRun(id,JSONObject(result.toString()).put("launcherPhase",phase.name)) } }
                         .onFailure { result.put("storageError",it.toString()) }
                 }
@@ -77,7 +79,7 @@ class LibraryLauncher(private val context: Context,private val repository: Profi
                 // Publish the complete terminal report before exposing Play again. Consumers
                 // must not see activeId=null alongside the preceding partial process snapshot.
                 mutable.update { it+(id to Session(phase,result.toString(),operation)) }
-                if(!status.active) {controllerHub?.let {it.close();withTimeoutOrNull(2000){it.awaitClosed()}};controllerHub=null;activeId.value=null}
+                if(!status.active) {controllers?.blockGameInput(false);audioStateJob?.cancel();controllerHub?.let {it.close();withTimeoutOrNull(2000){it.awaitClosed()}};controllerHub=null;activeId.value=null}
             }
         }
     }
@@ -94,6 +96,7 @@ class LibraryLauncher(private val context: Context,private val repository: Profi
     fun play(profile: GameProfile) = request(profile,"launch")
     fun request(profile: GameProfile,op: String) {
         check(activeId.value==null) { "Another runtime operation is active" }
+        controllers?.blockGameInput(false);liveProfile=profile;audioState.value="{}"
         audioReport=null;controllerInputReport=null;activeId.value=profile.id;operation=op;started=false;stopping=false;runId=java.util.UUID.randomUUID().toString()
         val phase=if(op=="launch") Phase.Preparing else Phase.Starting
         mutable.update { it+(profile.id to Session(phase,operation=op)) }
@@ -111,7 +114,10 @@ class LibraryLauncher(private val context: Context,private val repository: Profi
                     activeId.value=null
                 } else {
                     val audio=op=="launch" && profile.audioEnabled
-                    if(audio){check(runCatching{context.assets.open("wine-audio/manifest.json").close()}.isSuccess){"Experimental audio driver not bundled"};audioHub=org.frostbox.app.audio.AudioHub(context,profile.winePrefixId ?: profile.id,scope)}
+                    if(audio){check(runCatching{context.assets.open("wine-audio/manifest.json").close()}.isSuccess){"Experimental audio driver not bundled"};audioHub=org.frostbox.app.audio.AudioHub(context,profile.winePrefixId ?: profile.id,scope).also {hub ->
+                        hub.setGain(if(profile.experience.muted)0f else profile.experience.audioGain)
+                        audioStateJob?.cancel();audioStateJob=scope.launch {hub.report.collect {audioState.value=it}}
+                    }}
                     val input=op=="launch" && profile.controllerMode=="xinput" && controllers!=null && runCatching {context.assets.open("wine-input/manifest.json").close()}.isSuccess
                     if(input)controllerHub=org.frostbox.app.input.ControllerHub(profile.winePrefixId ?: profile.id,controllers!!,scope)
                     val gpu=op=="launch" && profile.graphics==org.frostbox.core.GraphicsBackend.DXVK
